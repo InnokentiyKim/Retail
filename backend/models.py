@@ -1,14 +1,36 @@
-from django.contrib.auth.models import User
+from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 
+class User(AbstractUser):
+    class UserTypeChoices(models.TextChoices):
+        seller = "Seller"
+        buyer = "Buyer"
+
+    type = models.TextField(choices=UserTypeChoices.choices, default=UserTypeChoices.buyer)
+
+    def __str__(self):
+        return f"{self.username} - {self.type} ({self.first_name} {self.last_name})"
+
+    class Meta:
+        verbose_name = 'Пользователь'
+        verbose_name_plural = 'Пользователи'
+
+
 class Shop(models.Model):
     name = models.CharField(max_length=100)
-    url = models.URLField(max_length=300)
+    url = models.URLField(max_length=300, blank=True, null=True)
+    user = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+
 
     def __str__(self):
         return self.name
+
+    class Meta:
+        verbose_name = 'Магазин'
+        verbose_name_plural = 'Список магазинов'
+        ordering = ['-name']
 
 
 class Category(models.Model):
