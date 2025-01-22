@@ -19,9 +19,11 @@ class User(AbstractUser):
 
 
 class Shop(models.Model):
+    objects = models.manager.Manager()
+
     name = models.CharField(max_length=100)
     url = models.URLField(max_length=300, blank=True, null=True)
-    user = models.ForeignKey(User, blank=True, null=True, on_delete=models.CASCADE)
+    user = models.OneToOneField(User, blank=True, on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
 
     def __str__(self):
@@ -34,7 +36,9 @@ class Shop(models.Model):
 
 
 class Category(models.Model):
-    name = models.CharField(max_length=100)
+    objects = models.manager.Manager()
+
+    name = models.CharField(max_length=80)
 
     def __str__(self):
         return self.name
@@ -46,6 +50,8 @@ class Category(models.Model):
 
 
 class Product(models.Model):
+    objects = models.manager.Manager()
+
     name = models.CharField(max_length=100)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     description = models.TextField(blank=True, null=True)
@@ -61,6 +67,8 @@ class Product(models.Model):
 
 
 class ProductDetails(models.Model):
+    objects = models.manager.Manager()
+
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='details')
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10000)])
     price = models.DecimalField(max_digits=10, decimal_places=2, positive=True)
