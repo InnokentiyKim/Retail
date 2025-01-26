@@ -1,16 +1,20 @@
 from django.core.exceptions import ValidationError
+from django.db.models import Sum, F, Q
 from django.shortcuts import render
+from rest_framework.generics import ListAPIView
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
-from .models import User, Shop, Category, Product, ProductDetails
+from .models import User, Shop, Category, Product, ProductDetails, Order
 import yaml
 
+from .serializers import CategorySerializer, ShopSerializer, OrderSerializer
 
-class ShopGoods(APIView):
+
+class ShopGoodsView(APIView):
     def post(self, request: Request, *args, **kwargs):
         url = request.data.get('url', None)
         if url is None:
@@ -37,3 +41,26 @@ class ShopGoods(APIView):
                 parameters=item['parameters'],
             )
         return JsonResponse({'Status': True}, status=200)
+
+
+class CategoryView(ListAPIView):
+    queryset = Category.objects.all()
+    serializer_class = CategorySerializer
+
+
+class ShopView(ListAPIView):
+    queryset = Shop.objects.filter(is_active=True)
+    serializer_class = ShopSerializer
+
+
+class OrderView(APIView):
+    def get(self, request: Request, *args, **kwargs):
+        order = Order.objects.filter(
+            user_id=request.user.id).prefetch_related(
+            'ordered_items__product__category').annotate(
+            total_price=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))).distinct()
+        serializer = OrderSerializer(order, many=True)
+        return Response(serializer.data)
+
+    def post(self, request: Request, *args, **kwargs):
+        pass

@@ -109,6 +109,8 @@ class Order(models.Model):
         delivered = 'Доставлен'
         canceled = 'Отменен'
 
+    objects = models.manager.Manager()
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
     created_at = models.DateTimeField(auto_now_add=True)
     state = models.CharField(max_length=12, choices=OrderStateChoices.choices, default=OrderStateChoices.new)
@@ -124,8 +126,8 @@ class Order(models.Model):
 
 
 class OrderItem(models.Model):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='order_items')
+    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='ordered_items')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_items')
     quantity = models.PositiveIntegerField(default=1)
 
     class Meta:
