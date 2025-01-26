@@ -23,6 +23,7 @@ class Shop(models.Model):
 
     name = models.CharField(max_length=100)
     url = models.URLField(max_length=300, blank=True, null=True)
+    description = models.TextField(blank=True, null=True)
     user = models.OneToOneField(User, blank=True, on_delete=models.CASCADE)
     is_active = models.BooleanField(default=True)
 
