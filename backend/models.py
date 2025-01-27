@@ -3,11 +3,26 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 
 
-class User(AbstractUser):
-    class UserTypeChoices(models.TextChoices):
-        seller = "Seller"
-        buyer = "Buyer"
+class BaseModel(models.Model):
+    objects = models.manager.Manager()
 
+
+class OrderStateChoices(models.TextChoices):
+    new = 'Новый'
+    gathering = 'Подготавливается'
+    confirmed = 'Подтвержден'
+    assembled = 'Собран'
+    sent = 'Отправлен'
+    delivered = 'Доставлен'
+    canceled = 'Отменен'
+
+
+class UserTypeChoices(models.TextChoices):
+    seller = "Seller"
+    buyer = "Buyer"
+
+
+class User(AbstractUser):
     type = models.TextField(choices=UserTypeChoices.choices, default=UserTypeChoices.buyer)
 
     def __str__(self):
@@ -18,9 +33,7 @@ class User(AbstractUser):
         verbose_name_plural = 'Пользователи'
 
 
-class Shop(models.Model):
-    objects = models.manager.Manager()
-
+class Shop(BaseModel):
     name = models.CharField(max_length=100)
     url = models.URLField(max_length=300, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
@@ -36,9 +49,7 @@ class Shop(models.Model):
         ordering = ['-name']
 
 
-class Category(models.Model):
-    objects = models.manager.Manager()
-
+class Category(BaseModel):
     name = models.CharField(max_length=80)
 
     def __str__(self):
@@ -50,9 +61,7 @@ class Category(models.Model):
         ordering = ['-name']
 
 
-class Product(models.Model):
-    objects = models.manager.Manager()
-
+class Product(BaseModel):
     name = models.CharField(max_length=100)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
     description = models.TextField(blank=True, null=True)
@@ -67,9 +76,7 @@ class Product(models.Model):
         ordering = ['-name']
 
 
-class ProductDetails(models.Model):
-    objects = models.manager.Manager()
-
+class ProductDetails(BaseModel):
     product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='details')
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10000)])
     price = models.DecimalField(max_digits=10, decimal_places=2, positive=True)
@@ -81,7 +88,7 @@ class ProductDetails(models.Model):
         verbose_name_plural = 'Описание продуктов'
 
 
-class Contact(models.Model):
+class Contact(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contacts', blank=True, null=True)
     phone  = models.CharField(max_length=20)
     country = models.CharField(max_length=30, blank=True, null=True)
@@ -100,17 +107,7 @@ class Contact(models.Model):
         verbose_name_plural = 'Список контактов'
 
 
-class Order(models.Model):
-    class OrderStateChoices(models.TextChoices):
-        new = 'Новый'
-        confirmed = 'Подтвержден'
-        assembled = 'Собран'
-        sent = 'Отправлен'
-        delivered = 'Доставлен'
-        canceled = 'Отменен'
-
-    objects = models.manager.Manager()
-
+class Order(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
     created_at = models.DateTimeField(auto_now_add=True)
     state = models.CharField(max_length=12, choices=OrderStateChoices.choices, default=OrderStateChoices.new)
@@ -125,7 +122,7 @@ class Order(models.Model):
         ordering = ['-created_at']
 
 
-class OrderItem(models.Model):
+class OrderItem(BaseModel):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='ordered_items')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_items')
     quantity = models.PositiveIntegerField(default=1)

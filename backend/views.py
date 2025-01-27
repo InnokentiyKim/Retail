@@ -1,17 +1,20 @@
+import json
+
 from django.core.exceptions import ValidationError
+from django.db import IntegrityError
 from django.db.models import Sum, F, Q
 from django.shortcuts import render
-from rest_framework.generics import ListAPIView
+from rest_framework.generics import ListAPIView, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
-from .models import User, Shop, Category, Product, ProductDetails, Order
+from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem
 import yaml
 
-from .serializers import CategorySerializer, ShopSerializer, OrderSerializer
+from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer
 
 
 class ShopGoodsView(APIView):
@@ -63,4 +66,58 @@ class OrderView(APIView):
         return Response(serializer.data)
 
     def post(self, request: Request, *args, **kwargs):
-        pass
+        updating_items = request.data.get('items')
+        if updating_items is None:
+            return JsonResponse({'error': 'items is required'}, status=400)
+        try:
+            updating_items_dict = json.loads(updating_items)
+        except ValueError:
+            return JsonResponse({'error': 'items format is invalid'}, status=400)
+        order, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.gathering)
+        for item in updating_items_dict:
+            item.update({'order_id': order.id})
+            serializer = OrderItemSerializer(item)
+            if serializer.is_valid():
+                try:
+                    serializer.save()
+                except IntegrityError as err:
+                    return JsonResponse({'error': str(err)}, status=400)
+            else:
+                return JsonResponse({'error': serializer.errors}, status=400)
+        return JsonResponse({'Status': True}, status=200)
+
+    def put(self, request: Request, *args, **kwargs):
+        adding_items = request.data.get('items')
+        if adding_items:
+            try:
+                adding_items_dict = json.loads(adding_items)
+            except ValueError:
+                return JsonResponse({'error': 'items format is invalid'}, status=400)
+            order, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.gathering)
+            for item in adding_items_dict:
+                if type(item['id']) is int and type(item['quantity']) is int:
+                    OrderItem.objects.filter(order_id=order.id, id=item['id']).update(quantity=item['quantity'])
+            return JsonResponse({'Status': True}, status=200)
+        return JsonResponse({'Status': False}, status=400)
+
+    def delete(self, request: Request, *args, **kwargs):
+        deleting_items = request.data.get('items')
+        if deleting_items:
+            deleting_items_list = deleting_items.split(',')
+            order = get_object_or_404(Order, user_id=request.user.id, state=OrderStateChoices.gathering)
+            query = Q()
+            has_deleting_items = False
+            for item_id in deleting_items_list:
+                if item_id.isdigit():
+                    query |= Q(order_id=order.id, id=item_id)
+                    has_deleting_items = True
+            if has_deleting_items:
+                OrderItem.objects.filter(query).delete()
+                return JsonResponse({'Status': True}, status=200)
+        return JsonResponse({'Status': False}, status=400)
+
+
+
+
+
+
