@@ -14,7 +14,8 @@ from requests import get
 from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem
 import yaml
 
-from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer
+from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
+    ProductDetailsSerializer
 
 
 class ShopGoodsView(APIView):
@@ -54,6 +55,21 @@ class CategoryView(ListAPIView):
 class ShopView(ListAPIView):
     queryset = Shop.objects.filter(is_active=True)
     serializer_class = ShopSerializer
+
+
+class ProductDetailsView(APIView):
+    def get(self, request: Request, *args, **kwargs):
+        query = Q(shop__is_active=True)
+        shop_id = request.query_params.get('shop_id', None)
+        category_id = request.query_params.get('category_id', None)
+        if shop_id:
+            query &= Q(shop__id=shop_id)
+        if category_id:
+            query &= Q(product__category_id=category_id)
+        queryset = ProductDetails.objects.filter(query).select_related(
+            'product__shop', 'product__category').distinct()
+        serializer = ProductDetailsSerializer(queryset, many=True)
+        return Response(serializer.data)
 
 
 class OrderView(APIView):
@@ -115,6 +131,7 @@ class OrderView(APIView):
                 OrderItem.objects.filter(query).delete()
                 return JsonResponse({'Status': True}, status=200)
         return JsonResponse({'Status': False}, status=400)
+
 
 
 
