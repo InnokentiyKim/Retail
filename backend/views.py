@@ -11,7 +11,7 @@ from rest_framework.response import Response
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
-from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem
+from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem, UserTypeChoices
 import yaml
 
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
@@ -131,6 +131,53 @@ class OrderView(APIView):
                 OrderItem.objects.filter(query).delete()
                 return JsonResponse({'Status': True}, status=200)
         return JsonResponse({'Status': False}, status=400)
+
+
+class SellerStatusView(APIView):
+    def get(self, request: Request, *args, **kwargs):
+        if request.user.type != UserTypeChoices.seller:
+            return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
+        shop = request.user.shop
+        serializer = ShopSerializer(shop)
+        return Response(serializer.data)
+
+    def post(self, request: Request, *args, **kwargs):
+        if request.user.type != UserTypeChoices.seller:
+            return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
+        status = request.data.get('is_active')
+        if status:
+            try:
+                Shop.objects.filter(user_id=request.user.id).update(is_active=bool(status))
+                return JsonResponse({'Status': True}, status=200)
+            except IntegrityError as err:
+                return JsonResponse({'error': str(err)}, status=400)
+            except ValueError as error:
+                return JsonResponse({'error': str(error)}, status=400)
+        return JsonResponse({'Status': False}, status=400)
+
+
+class SellerOrdersView(APIView):
+    def get(self, request: Request, *args, **kwargs):
+        if request.user.type != UserTypeChoices.seller:
+            return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
+        order = Order.objects.filter(
+            ordered_items__product__shop__user_id=request.user.id).exclude(
+            state=OrderStateChoices.gathering).prefetch_related(
+            'ordered_items__product__category',
+            'ordered_items__product__details__parameters').select_related(
+            'contact').annotate(
+            total_price=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))
+        ).distinct()
+        serializer = OrderSerializer(order, many=True)
+        return Response(serializer.data)
+
+
+class ContactView(APIView):
+    def get(self, request: Request, *args, **kwargs):
+        pass
+
+
+
 
 
 
