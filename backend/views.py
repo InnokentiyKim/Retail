@@ -11,11 +11,12 @@ from rest_framework.response import Response
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
-from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem, UserTypeChoices
+from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
+    Contact
 import yaml
 
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
-    ProductDetailsSerializer
+    ProductDetailsSerializer, ContactSerializer
 
 
 class ShopGoodsView(APIView):
@@ -72,13 +73,13 @@ class ProductDetailsView(APIView):
         return Response(serializer.data)
 
 
-class OrderView(APIView):
+class ShoppingCartView(APIView):
     def get(self, request: Request, *args, **kwargs):
-        order = Order.objects.filter(
+        cart = Order.objects.filter(
             user_id=request.user.id).prefetch_related(
             'ordered_items__product__category').annotate(
             total_price=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))).distinct()
-        serializer = OrderSerializer(order, many=True)
+        serializer = OrderSerializer(cart, many=True)
         return Response(serializer.data)
 
     def post(self, request: Request, *args, **kwargs):
@@ -89,9 +90,9 @@ class OrderView(APIView):
             updating_items_dict = json.loads(updating_items)
         except ValueError:
             return JsonResponse({'error': 'items format is invalid'}, status=400)
-        order, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.gathering)
+        cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.gathering)
         for item in updating_items_dict:
-            item.update({'order_id': order.id})
+            item.update({'order_id': cart.id})
             serializer = OrderItemSerializer(item)
             if serializer.is_valid():
                 try:
@@ -109,10 +110,10 @@ class OrderView(APIView):
                 adding_items_dict = json.loads(adding_items)
             except ValueError:
                 return JsonResponse({'error': 'items format is invalid'}, status=400)
-            order, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.gathering)
+            cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.gathering)
             for item in adding_items_dict:
                 if type(item['id']) is int and type(item['quantity']) is int:
-                    OrderItem.objects.filter(order_id=order.id, id=item['id']).update(quantity=item['quantity'])
+                    OrderItem.objects.filter(order_id=cart.id, id=item['id']).update(quantity=item['quantity'])
             return JsonResponse({'Status': True}, status=200)
         return JsonResponse({'Status': False}, status=400)
 
@@ -120,12 +121,12 @@ class OrderView(APIView):
         deleting_items = request.data.get('items')
         if deleting_items:
             deleting_items_list = deleting_items.split(',')
-            order = get_object_or_404(Order, user_id=request.user.id, state=OrderStateChoices.gathering)
+            cart = get_object_or_404(Order, user_id=request.user.id, state=OrderStateChoices.gathering)
             query = Q()
             has_deleting_items = False
             for item_id in deleting_items_list:
                 if item_id.isdigit():
-                    query |= Q(order_id=order.id, id=item_id)
+                    query |= Q(order_id=cart.id, id=item_id)
                     has_deleting_items = True
             if has_deleting_items:
                 OrderItem.objects.filter(query).delete()
@@ -174,14 +175,70 @@ class SellerOrdersView(APIView):
 
 class ContactView(APIView):
     def get(self, request: Request, *args, **kwargs):
-        pass
+        contact = Contact.objects.filter(user_id=request.user.id)
+        serializer = ContactSerializer(contact, many=True)
+        return Response(serializer.data)
+
+    def post(self, request: Request, *args, **kwargs):
+        if {'city', 'street', 'phone'}.issubset(request.data):
+            contact_data = request.data.copy()
+            contact_data.update({'user': request.user.id})
+            serializer = ContactSerializer(data=contact_data)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponse({'Status': True}, status=200)
+            return JsonResponse({'error': serializer.errors}, status=400)
+        return JsonResponse({'Status': False}, status=400)
+
+    def put(self, request: Request, *args, **kwargs):
+        if 'id' in request.data and request.data['id'].isdigit():
+            contact = Contact.objects.filter(id=request.data['id'], user_id=request.user.id).first()
+            if contact:
+                serializer = ContactSerializer(contact, data=request.data, partial=True)
+                if serializer.is_valid():
+                    serializer.save()
+                    return JsonResponse({'Status': True}, status=200)
+                else:
+                    return JsonResponse({'error': serializer.errors}, status=400)
+        return JsonResponse({'Status': False}, status=400)
+
+    def delete(self, request: Request, *args, **kwargs):
+        deleting_contacts = request.data.get('items')
+        if deleting_contacts:
+            deleting_contacts_list = deleting_contacts.split(',')
+            query = Q()
+            has_deleting_items = False
+            for contact_id in deleting_contacts_list:
+                if contact_id.isdigit():
+                    query |= Q(user_id=request.user.id, id=contact_id)
+                    has_deleting_items = True
+            if has_deleting_items:
+                Contact.objects.filter(query).delete()
+                return JsonResponse({'Status': True}, status=204)
+        return JsonResponse({'Status': False}, status=400)
 
 
+class OrderView(APIView):
+    def get(self, request: Request, *args, **kwargs):
+        order = Order.objects.filter(user_id=request.user.id).exclude(state=OrderStateChoices.gathering).prefetch_related(
+            'ordered_items__product__category',
+            'ordered_items__product__details__parameters').select_related('contact').annotate(
+            total_sum=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))
+        ).distinct()
+        serializer = OrderSerializer(order, many=True)
+        return Response(serializer.data)
 
-
-
-
-
-
-
-
+    def post(self, request: Request, *args, **kwargs):
+        if {'id', 'contact'}.issubset(request.data):
+            if request.data['id'].isdigit():
+                try:
+                    is_updated = Order.objects.filter(
+                        user_id=request.user.id, id=request.data['id']).update(
+                        contact_id=request.data['contact'],
+                        state=OrderStateChoices.new)
+                except IntegrityError as err:
+                    return JsonResponse({'error': str(err)}, status=400)
+                if is_updated:
+                    # new_order.send(sender=self.__class__, user_id=request.user.id)
+                    return JsonResponse({'Status': True}, status=200)
+        return JsonResponse({'Status': False}, status=400)
