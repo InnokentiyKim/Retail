@@ -1,9 +1,11 @@
 import json
+from audioop import error
 
+import yaml
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models import Sum, F, Q
-from django.shortcuts import render
+from django.contrib.auth.password_validation import validate_password
 from rest_framework.generics import ListAPIView, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.request import Request
@@ -12,11 +14,47 @@ from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
 from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
-    Contact
-import yaml
-
+    Contact, EmailTokenConfirm
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
-    ProductDetailsSerializer, ContactSerializer
+    ProductDetailsSerializer, ContactSerializer, UserSerializer
+
+
+class AccountRegisterView(APIView):
+    def post(self, request):
+        if {'email', 'username', 'first_name', 'last_name', 'password'}.issubset(request.data):
+            try:
+                validate_password(request.data['password'])
+            except Exception as error:
+                return JsonResponse({'error': str(error)}, status=400)
+            else:
+                user_serializer = UserSerializer(data=request.data)
+                if user_serializer.is_valid():
+                    user = user_serializer.save()
+                    user.set_password(request.data['password'])
+                    user.save()
+                    return JsonResponse({'Status': True}, status=201)
+                else:
+                    return JsonResponse({'Status': False, 'errors': user_serializer.errors}, status=400)
+        return JsonResponse({'Status': False}, status=400)
+
+
+class AccountConfirmView(APIView):
+    def post(self, request):
+        if {'email', 'token'}.issubset(request.data):
+            token = EmailTokenConfirm.objects.filter(
+                user__email=request.data['email'],
+                key=request.data['token']).first()
+            if token:
+                token.user.is_active = True
+                token.user.save()
+                token.delete()
+                return JsonResponse({'Status': True}, status=201)
+            else:
+                return JsonResponse({'Status': False, 'error': 'Неверно указан email или токен'}, status=400)
+        return JsonResponse({'Status': False}, status=400)
+
+
+
 
 
 class ShopGoodsView(APIView):
@@ -220,7 +258,8 @@ class ContactView(APIView):
 
 class OrderView(APIView):
     def get(self, request: Request, *args, **kwargs):
-        order = Order.objects.filter(user_id=request.user.id).exclude(state=OrderStateChoices.gathering).prefetch_related(
+        order = Order.objects.filter(user_id=request.user.id).exclude(
+            state=OrderStateChoices.gathering).prefetch_related(
             'ordered_items__product__category',
             'ordered_items__product__details__parameters').select_related('contact').annotate(
             total_sum=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))
