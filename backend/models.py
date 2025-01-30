@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+from rest_framework.authtoken.models import Token
 import uuid
 
 
@@ -153,4 +154,8 @@ class EmailTokenConfirm(BaseModel):
 
     def __str__(self):
         return f"Password reset token for {self.user}"
+
+
+class UserToken(BaseModel, Token):
+    pass
 
