@@ -1,20 +1,20 @@
 import json
-from audioop import error
-
 import yaml
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models import Sum, F, Q
+from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.generics import ListAPIView, get_object_or_404
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.authtoken.models import Token
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
 from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
-    Contact, EmailTokenConfirm
+    Contact, EmailTokenConfirm, UserToken
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
     ProductDetailsSerializer, ContactSerializer, UserSerializer
 
@@ -54,10 +54,39 @@ class AccountConfirmView(APIView):
         return JsonResponse({'Status': False}, status=400)
 
 
+class AccountView(APIView):
+    def get(self, request):
+        serializer = UserSerializer(request.user)
+        return JsonResponse(serializer.data)
+
+    def post(self, request):
+        if 'password' in request.data:
+            try:
+                validate_password(request.data['password'])
+            except Exception as error:
+                return JsonResponse({'error': str(error)}, status=400)
+            else:
+                request.user.set_password(request.data['password'])
+        user_serializer = UserSerializer(request.user, data=request.data, partial=True)
+        if user_serializer.is_valid():
+            user_serializer.save()
+            return JsonResponse({'Status': True}, status=201)
+        else:
+            return JsonResponse({'Status': False, 'errors': user_serializer.errors}, status=400)
 
 
+class LoginAccountView(APIView):
+    def post(self, request):
+        if {'email', 'password'}.issubset(request.data):
+            user = authenticate(request, email=request.data['email'], password=request.data['password'])
+            if user is not None and user.is_active:
+                token, _ = UserToken.objects.get_or_create(user=user)
+                return JsonResponse({'Status': True, 'token': token.key})
+            return JsonResponse({'Status': False, 'error': 'Authentication failed'}, status=400)
+        return JsonResponse({'Status': False}, status=400)
 
-class ShopGoodsView(APIView):
+
+class SellerGoodsView(APIView):
     def post(self, request: Request, *args, **kwargs):
         url = request.data.get('url', None)
         if url is None:
