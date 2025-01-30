@@ -1,6 +1,7 @@
 from django.contrib.auth.models import AbstractUser
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
+import uuid
 
 
 class BaseModel(models.Model):
@@ -38,7 +39,7 @@ class Shop(BaseModel):
     url = models.URLField(max_length=300, blank=True, null=True)
     description = models.TextField(blank=True, null=True)
     user = models.OneToOneField(User, blank=True, on_delete=models.CASCADE, related_name='shop')
-    is_active = models.BooleanField(default=True)
+    is_active = models.BooleanField(default=False)
 
     def __str__(self):
         return self.name
@@ -130,3 +131,26 @@ class OrderItem(BaseModel):
     class Meta:
         verbose_name = 'Позиция заказа'
         verbose_name_plural = 'Список позиций заказа'
+
+
+class EmailTokenConfirm(BaseModel):
+    class Meta:
+        verbose_name = 'Токен для подтверждения email'
+        verbose_name_plural = 'Токены для подтверждения email'
+
+    @staticmethod
+    def generate_token():
+        return uuid.uuid4().hex
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='confirm_email_tokens')
+    created_at = models.DateTimeField(auto_now_add=True)
+    key = models.CharField(max_length=80, db_index=True, unique=True)
+
+    def save(self, *args, **kwargs):
+        if not self.key:
+            self.key = self.generate_token()
+        return super(EmailTokenConfirm, self).save(*args, **kwargs)
+
+    def __str__(self):
+        return f"Password reset token for {self.user}"
+
