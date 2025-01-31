@@ -6,15 +6,16 @@ from django.db.models import Sum, F, Q
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.generics import ListAPIView, get_object_or_404
+from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.authtoken.models import Token
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
 from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
     Contact, EmailTokenConfirm, UserToken
+from .permissions import IsSeller
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
     ProductDetailsSerializer, ContactSerializer, UserSerializer
 
@@ -55,6 +56,8 @@ class AccountConfirmView(APIView):
 
 
 class AccountView(APIView):
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request):
         serializer = UserSerializer(request.user)
         return JsonResponse(serializer.data)
@@ -87,6 +90,8 @@ class LoginAccountView(APIView):
 
 
 class SellerGoodsView(APIView):
+    permission_classes = (IsAuthenticated, IsSeller)
+
     def post(self, request: Request, *args, **kwargs):
         url = request.data.get('url', None)
         if url is None:
@@ -116,16 +121,20 @@ class SellerGoodsView(APIView):
 
 
 class CategoryView(ListAPIView):
+    permission_classes = (AllowAny,)
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
 
 
 class ShopView(ListAPIView):
+    permission_classes = (AllowAny,)
     queryset = Shop.objects.filter(is_active=True)
     serializer_class = ShopSerializer
 
 
 class ProductDetailsView(APIView):
+    permission_classes = (AllowAny,)
+
     def get(self, request: Request, *args, **kwargs):
         query = Q(shop__is_active=True)
         shop_id = request.query_params.get('shop_id', None)
@@ -141,6 +150,8 @@ class ProductDetailsView(APIView):
 
 
 class ShoppingCartView(APIView):
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request: Request, *args, **kwargs):
         cart = Order.objects.filter(
             user_id=request.user.id).prefetch_related(
@@ -202,6 +213,8 @@ class ShoppingCartView(APIView):
 
 
 class SellerStatusView(APIView):
+    permission_classes = (IsAuthenticated, IsSeller)
+
     def get(self, request: Request, *args, **kwargs):
         if request.user.type != UserTypeChoices.seller:
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
@@ -225,6 +238,8 @@ class SellerStatusView(APIView):
 
 
 class SellerOrdersView(APIView):
+    permission_classes = (IsAuthenticated, IsSeller)
+
     def get(self, request: Request, *args, **kwargs):
         if request.user.type != UserTypeChoices.seller:
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
@@ -241,6 +256,8 @@ class SellerOrdersView(APIView):
 
 
 class ContactView(APIView):
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request: Request, *args, **kwargs):
         contact = Contact.objects.filter(user_id=request.user.id)
         serializer = ContactSerializer(contact, many=True)
@@ -286,6 +303,8 @@ class ContactView(APIView):
 
 
 class OrderView(APIView):
+    permission_classes = (IsAuthenticated,)
+
     def get(self, request: Request, *args, **kwargs):
         order = Order.objects.filter(user_id=request.user.id).exclude(
             state=OrderStateChoices.gathering).prefetch_related(
