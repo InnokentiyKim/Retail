@@ -18,6 +18,7 @@ from .models import User, Shop, Category, Product, ProductDetails, Order, OrderS
 from .permissions import IsSeller
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
     ProductDetailsSerializer, ContactSerializer, UserSerializer
+from backend.signals import new_user_registered, new_order
 
 
 class AccountRegisterView(APIView):
@@ -326,6 +327,6 @@ class OrderView(APIView):
                 except IntegrityError as err:
                     return JsonResponse({'error': str(err)}, status=400)
                 if is_updated:
-                    # new_order.send(sender=self.__class__, user_id=request.user.id)
+                    new_order.send(sender=self.__class__, user_id=request.user.id)
                     return JsonResponse({'Status': True}, status=200)
         return JsonResponse({'Status': False}, status=400)
