@@ -9,26 +9,26 @@ class BaseModel(models.Model):
     objects = models.manager.Manager()
 
 
-class OrderStateChoices(models.TextChoices):
-    new = 'Новый'
-    gathering = 'Подготавливается'
-    confirmed = 'Подтвержден'
-    assembled = 'Собран'
-    sent = 'Отправлен'
-    delivered = 'Доставлен'
-    canceled = 'Отменен'
+class OrderStateChoices(models.IntegerChoices):
+    new = 1, 'Новый'
+    gathering = 2, 'Подготавливается'
+    confirmed = 3, 'Подтвержден'
+    assembled = 4, 'Собран'
+    sent = 5, 'Отправлен'
+    delivered = 6, 'Доставлен'
+    canceled = 7, 'Отменен'
 
 
 class UserTypeChoices(models.TextChoices):
-    seller = "Seller"
-    buyer = "Buyer"
+    SELLER = "SL", "Seller"
+    BUYER = "BR", "Buyer"
 
 
 class User(AbstractUser):
-    type = models.TextField(choices=UserTypeChoices.choices, default=UserTypeChoices.buyer)
+    type = models.TextField(choices=UserTypeChoices.choices, max_length=2, default=UserTypeChoices.BUYER)
 
     def __str__(self):
-        return f"{self.username} - {self.type} ({self.first_name} {self.last_name})"
+        return f"{self.first_name} {self.last_name} ({self.username}) - {self.type}"
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -66,8 +66,6 @@ class Category(BaseModel):
 class Product(BaseModel):
     name = models.CharField(max_length=100)
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
-    description = models.TextField(blank=True, null=True)
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='products')
 
     def __str__(self):
         return self.name
@@ -79,15 +77,40 @@ class Product(BaseModel):
 
 
 class ProductDetails(BaseModel):
-    product = models.OneToOneField(Product, on_delete=models.CASCADE, related_name='details')
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='details')
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='product_details')
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10000)])
     price = models.DecimalField(max_digits=10, decimal_places=2, positive=True)
     price_retail = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True, positive=True)
-    parameters = models.JSONField(default=dict, blank=True, null=True)
 
     class Meta:
         verbose_name = 'Описание продукта'
         verbose_name_plural = 'Описание продуктов'
+
+
+class Property(BaseModel):
+    name = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name = 'Свойство'
+        verbose_name_plural = 'Список свойств'
+        ordering = ['-name']
+
+    def __str__(self):
+        return self.name
+
+
+class ProductProperty(BaseModel):
+    product_details = models.ForeignKey(ProductDetails, blank=True, on_delete=models.CASCADE,
+                                        related_name='product_properties')
+    property = models.ForeignKey(Property, blank=True, on_delete=models.CASCADE, related_name='product_properties')
+    value = models.CharField(max_length=100)
+
+    class Meta:
+        verbose_name = 'Свойства продукта'
+        verbose_name_plural = 'Список  свойств продукта'
+        constraints = [models.UniqueConstraint(fields=['product_details', 'property'],
+                                               name='unique_product_properties')]
 
 
 class Contact(BaseModel):
@@ -113,7 +136,7 @@ class Order(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
     created_at = models.DateTimeField(auto_now_add=True)
     state = models.CharField(max_length=12, choices=OrderStateChoices.choices, default=OrderStateChoices.new)
-    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, blank=True, related_name='orders')
+    contact = models.ForeignKey(Contact, on_delete=models.CASCADE, blank=True, null=True, related_name='orders')
 
     def __str__(self):
         return f"{self.created_at} - {self.state}"
@@ -125,13 +148,16 @@ class Order(BaseModel):
 
 
 class OrderItem(BaseModel):
-    order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name='ordered_items')
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_items')
+    order = models.ForeignKey(Order, blank=True, on_delete=models.CASCADE, related_name='ordered_items')
+    product_details = models.ForeignKey(ProductDetails, blank=True, on_delete=models.CASCADE, related_name='product_items')
     quantity = models.PositiveIntegerField(default=1)
 
     class Meta:
         verbose_name = 'Позиция заказа'
         verbose_name_plural = 'Список позиций заказа'
+        constraints = [
+            models.UniqueConstraint(fields=['order', 'product_details'], name='unique_order_item')
+        ]
 
 
 class EmailTokenConfirm(BaseModel):

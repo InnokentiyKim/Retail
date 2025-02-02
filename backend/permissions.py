@@ -17,6 +17,6 @@ class IsOwner(permissions.BasePermission):
 
 class IsSeller(permissions.BasePermission):
     def has_permission(self, request, view):
-        if request.user and request.user.type == UserTypeChoices.seller:
+        if request.user and request.user.type == UserTypeChoices.SELLER:
             return True
         return False

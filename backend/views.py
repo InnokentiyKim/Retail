@@ -216,14 +216,14 @@ class SellerStatusView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
     def get(self, request: Request, *args, **kwargs):
-        if request.user.type != UserTypeChoices.seller:
+        if request.user.type != UserTypeChoices.SELLER:
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
         shop = request.user.shop
         serializer = ShopSerializer(shop)
         return Response(serializer.data)
 
     def post(self, request: Request, *args, **kwargs):
-        if request.user.type != UserTypeChoices.seller:
+        if request.user.type != UserTypeChoices.SELLER:
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
         status = request.data.get('is_active')
         if status:
@@ -241,7 +241,7 @@ class SellerOrdersView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
     def get(self, request: Request, *args, **kwargs):
-        if request.user.type != UserTypeChoices.seller:
+        if request.user.type != UserTypeChoices.SELLER:
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
         order = Order.objects.filter(
             ordered_items__product__shop__user_id=request.user.id).exclude(
