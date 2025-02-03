@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from backend.models import User, Shop, Category, Product, ProductDetails, Order, OrderItem, Contact, EmailTokenConfirm
+from backend.models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm
 
 
 @admin.register(User)
@@ -31,7 +31,7 @@ class ProductAdmin(admin.ModelAdmin):
     pass
 
 
-@admin.register(ProductDetails)
+@admin.register(ProductItem)
 class ProductDetailsAdmin(admin.ModelAdmin):
     pass
 

@@ -13,11 +13,11 @@ from rest_framework.response import Response
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
-from .models import User, Shop, Category, Product, ProductDetails, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
+from .models import User, Shop, Category, Product, ProductItem, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
     Contact, EmailTokenConfirm, UserToken
 from .permissions import IsSeller
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
-    ProductDetailsSerializer, ContactSerializer, UserSerializer
+    ProductItemSerializer, ContactSerializer, UserSerializer
 from backend.signals import new_user_registered, new_order
 
 
@@ -110,8 +110,8 @@ class SellerGoodsView(APIView):
         for item in data['goods']:
             product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category_id'], shop_id=shop.id)
             if not created:
-                ProductDetails.objects.filter(product_id=product.id).delete()
-            product_details = ProductDetails.objects.create(
+                ProductItem.objects.filter(product_id=product.id).delete()
+            product_details = ProductItem.objects.create(
                 product_id=product.id,
                 price=item['price'],
                 price_retail=item['price_retail'],
@@ -144,9 +144,9 @@ class ProductDetailsView(APIView):
             query &= Q(shop__id=shop_id)
         if category_id:
             query &= Q(product__category_id=category_id)
-        queryset = ProductDetails.objects.filter(query).select_related(
+        queryset = ProductItem.objects.filter(query).select_related(
             'product__shop', 'product__category').distinct()
-        serializer = ProductDetailsSerializer(queryset, many=True)
+        serializer = ProductItemSerializer(queryset, many=True)
         return Response(serializer.data)
 
 
@@ -169,7 +169,7 @@ class ShoppingCartView(APIView):
             updating_items_dict = json.loads(updating_items)
         except ValueError:
             return JsonResponse({'error': 'items format is invalid'}, status=400)
-        cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.gathering)
+        cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.GATHERING)
         for item in updating_items_dict:
             item.update({'order_id': cart.id})
             serializer = OrderItemSerializer(item)
@@ -189,7 +189,7 @@ class ShoppingCartView(APIView):
                 adding_items_dict = json.loads(adding_items)
             except ValueError:
                 return JsonResponse({'error': 'items format is invalid'}, status=400)
-            cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.gathering)
+            cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.GATHERING)
             for item in adding_items_dict:
                 if type(item['id']) is int and type(item['quantity']) is int:
                     OrderItem.objects.filter(order_id=cart.id, id=item['id']).update(quantity=item['quantity'])
@@ -200,7 +200,7 @@ class ShoppingCartView(APIView):
         deleting_items = request.data.get('items')
         if deleting_items:
             deleting_items_list = deleting_items.split(',')
-            cart = get_object_or_404(Order, user_id=request.user.id, state=OrderStateChoices.gathering)
+            cart = get_object_or_404(Order, user_id=request.user.id, state=OrderStateChoices.GATHERING)
             query = Q()
             has_deleting_items = False
             for item_id in deleting_items_list:
@@ -246,7 +246,7 @@ class SellerOrdersView(APIView):
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
         order = Order.objects.filter(
             ordered_items__product__shop__user_id=request.user.id).exclude(
-            state=OrderStateChoices.gathering).prefetch_related(
+            state=OrderStateChoices.GATHERING).prefetch_related(
             'ordered_items__product__category',
             'ordered_items__product__details__parameters').select_related(
             'contact').annotate(
@@ -308,7 +308,7 @@ class OrderView(APIView):
 
     def get(self, request: Request, *args, **kwargs):
         order = Order.objects.filter(user_id=request.user.id).exclude(
-            state=OrderStateChoices.gathering).prefetch_related(
+            state=OrderStateChoices.GATHERING).prefetch_related(
             'ordered_items__product__category',
             'ordered_items__product__details__parameters').select_related('contact').annotate(
             total_sum=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))
@@ -323,7 +323,7 @@ class OrderView(APIView):
                     is_updated = Order.objects.filter(
                         user_id=request.user.id, id=request.data['id']).update(
                         contact_id=request.data['contact'],
-                        state=OrderStateChoices.new)
+                        state=OrderStateChoices.NEW)
                 except IntegrityError as err:
                     return JsonResponse({'error': str(err)}, status=400)
                 if is_updated:

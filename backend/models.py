@@ -10,13 +10,13 @@ class BaseModel(models.Model):
 
 
 class OrderStateChoices(models.IntegerChoices):
-    new = 1, 'Новый'
-    gathering = 2, 'Подготавливается'
-    confirmed = 3, 'Подтвержден'
-    assembled = 4, 'Собран'
-    sent = 5, 'Отправлен'
-    delivered = 6, 'Доставлен'
-    canceled = 7, 'Отменен'
+    NEW = 1, 'Новый'
+    GATHERING = 2, 'Подготавливается'
+    CONFIRMED = 3, 'Подтвержден'
+    ASSEMBLED = 4, 'Собран'
+    SENT = 5, 'Отправлен'
+    DELIVERED = 6, 'Доставлен'
+    CANCELED = 7, 'Отменен'
 
 
 class UserTypeChoices(models.TextChoices):
@@ -76,9 +76,9 @@ class Product(BaseModel):
         ordering = ['-name']
 
 
-class ProductDetails(BaseModel):
-    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='details')
-    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='product_details')
+class ProductItem(BaseModel):
+    product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='items')
+    shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='product_items')
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10000)])
     preview = models.ImageField(upload_to='images/', blank=True, null=True)
     price = models.DecimalField(max_digits=10, decimal_places=2, positive=True)
@@ -102,7 +102,7 @@ class Property(BaseModel):
 
 
 class ProductProperty(BaseModel):
-    product_details = models.ForeignKey(ProductDetails, blank=True, on_delete=models.CASCADE,
+    product_item = models.ForeignKey(ProductItem, blank=True, on_delete=models.CASCADE,
                                         related_name='product_properties')
     property = models.ForeignKey(Property, blank=True, on_delete=models.CASCADE, related_name='product_properties')
     value = models.CharField(max_length=100)
@@ -110,23 +110,23 @@ class ProductProperty(BaseModel):
     class Meta:
         verbose_name = 'Свойства продукта'
         verbose_name_plural = 'Список  свойств продукта'
-        constraints = [models.UniqueConstraint(fields=['product_details', 'property'],
+        constraints = [models.UniqueConstraint(fields=['product_item', 'property'],
                                                name='unique_product_properties')]
 
 
 class Contact(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contacts', blank=True, null=True)
-    phone  = models.CharField(max_length=20)
+    phone  = models.CharField(max_length=20, blank=True)
     country = models.CharField(max_length=30, blank=True, null=True)
-    city = models.CharField(max_length=50)
-    street = models.CharField(max_length=60)
+    city = models.CharField(max_length=50, blank=True)
+    street = models.CharField(max_length=60, blank=True)
     house = models.CharField(max_length=20, blank=True)
-    structure = models.CharField(max_length=20, blank=True)
-    building = models.CharField(max_length=20, blank=True)
+    structure = models.CharField(max_length=20, blank=True, null=True)
+    building = models.CharField(max_length=20, blank=True, null=True)
     apartment = models.CharField(max_length=20, blank=True)
 
     def __str__(self):
-        return f"{self.city}, {self.street}, {self.house}. Phone number is {self.phone}"
+        return f"{self.city}, {self.street}, {self.house}, {self.apartment}. Phone number is {self.phone}"
 
     class Meta:
         verbose_name = 'Контакты пользователя'
@@ -136,7 +136,7 @@ class Contact(BaseModel):
 class Order(BaseModel):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders')
     created_at = models.DateTimeField(auto_now_add=True)
-    state = models.CharField(max_length=12, choices=OrderStateChoices.choices, default=OrderStateChoices.new)
+    state = models.CharField(max_length=12, choices=OrderStateChoices.choices, default=OrderStateChoices.NEW)
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, blank=True, null=True, related_name='orders')
 
     def __str__(self):
@@ -150,7 +150,7 @@ class Order(BaseModel):
 
 class OrderItem(BaseModel):
     order = models.ForeignKey(Order, blank=True, on_delete=models.CASCADE, related_name='ordered_items')
-    product_details = models.ForeignKey(ProductDetails, blank=True, on_delete=models.CASCADE, related_name='product_items')
+    product_item = models.ForeignKey(ProductItem, blank=True, on_delete=models.CASCADE, related_name='ordered_items')
     quantity = models.PositiveIntegerField(default=1)
 
     class Meta:
