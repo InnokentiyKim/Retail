@@ -26,6 +26,8 @@ class UserTypeChoices(models.TextChoices):
 
 class User(AbstractUser):
     type = models.TextField(choices=UserTypeChoices.choices, max_length=2, default=UserTypeChoices.BUYER)
+    email = models.EmailField(unique=True)
+    is_active = models.BooleanField(default=False)
 
     def __str__(self):
         return f"{self.first_name} {self.last_name} ({self.username}) - {self.type}"

@@ -34,10 +34,10 @@ class AccountRegisterView(APIView):
                     user = user_serializer.save()
                     user.set_password(request.data['password'])
                     user.save()
-                    return JsonResponse({'Status': True}, status=201)
+                    return JsonResponse({'status': True}, status=201)
                 else:
-                    return JsonResponse({'Status': False, 'errors': user_serializer.errors}, status=400)
-        return JsonResponse({'Status': False}, status=400)
+                    return JsonResponse({'status': False, 'errors': user_serializer.errors}, status=400)
+        return JsonResponse({'status': False, }, status=400)
 
 
 class AccountConfirmView(APIView):
@@ -133,7 +133,7 @@ class ShopView(ListAPIView):
     serializer_class = ShopSerializer
 
 
-class ProductDetailsView(APIView):
+class ProductItemView(APIView):
     permission_classes = (AllowAny,)
 
     def get(self, request: Request, *args, **kwargs):
@@ -200,16 +200,17 @@ class ShoppingCartView(APIView):
         deleting_items = request.data.get('items')
         if deleting_items:
             deleting_items_list = deleting_items.split(',')
-            cart = get_object_or_404(Order, user_id=request.user.id, state=OrderStateChoices.GATHERING)
-            query = Q()
-            has_deleting_items = False
-            for item_id in deleting_items_list:
-                if item_id.isdigit():
-                    query |= Q(order_id=cart.id, id=item_id)
-                    has_deleting_items = True
-            if has_deleting_items:
-                OrderItem.objects.filter(query).delete()
-                return JsonResponse({'Status': True}, status=200)
+            cart = Order.objects.filter(user_id=request.user.id, state=OrderStateChoices.GATHERING)
+            if cart:
+                query = Q()
+                has_deleting_items = False
+                for item_id in deleting_items_list:
+                    if item_id.isdigit():
+                        query |= Q(order_id=cart.id, id=item_id)
+                        has_deleting_items = True
+                if has_deleting_items:
+                    OrderItem.objects.filter(query).delete()
+                    return JsonResponse({'Status': True}, status=204)
         return JsonResponse({'Status': False}, status=400)
 
 

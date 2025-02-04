@@ -6,10 +6,12 @@ from rest_framework import serializers
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = ['id', 'phone', 'country', 'city', 'street', 'house', 'structure', 'building', 'apartment']
+        fields = ['id', 'phone', 'country', 'city', 'street', 'house', 'apartment']
         read_only_fields = ['id']
         extra_kwargs = {
-            'user': {'read_only': True}
+            'user': {'read_only': True},
+            'structure': {'required': False},
+            'building': {'required': False},
         }
 
 
@@ -81,7 +83,7 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'order', 'product_item', 'quantity']
         read_only_fields = ['id']
         extra_kwargs = {
-            'order': {'read_only': True},
+            'order': {'write_only': True},
         }
 
 

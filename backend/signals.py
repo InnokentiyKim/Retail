@@ -38,10 +38,11 @@ def new_user_registered_signal(sender: Type[User], instance: User, created: bool
 @receiver(new_order)
 def new_order_signal(user_id, **kwargs):
     user = User.objects.get(pk=user_id)
-    msg = EmailMultiAlternatives(
-        "Обновление статуса заказа",
-        "Заказ сформирован",
-        settings.EMAIL_HOST_USER,
-        [user.email]
-    )
-    msg.send()
+    if user is not None:
+        msg = EmailMultiAlternatives(
+            "Обновление статуса заказа",
+            "Заказ сформирован",
+            settings.EMAIL_HOST_USER,
+            [user.email]
+        )
+        msg.send()
