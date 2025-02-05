@@ -1,5 +1,5 @@
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty
-from models import User, Shop, Category, Product
+from backend.models import User, Shop, Category, Product
 from rest_framework import serializers
 
 

@@ -1,12 +1,10 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from backend.models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm
+from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm
 
 
 @admin.register(User)
 class CustomUserAdmin(UserAdmin):
-    model = User
-
     fieldsets = (
         (None, {'fields': ('email', 'password', 'type')}),
         ('Personal info', {'fields': ('first_name', 'last_name')}),

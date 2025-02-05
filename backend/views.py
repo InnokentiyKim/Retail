@@ -5,7 +5,7 @@ from django.db import IntegrityError
 from django.db.models import Sum, F, Q
 from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
-from rest_framework.generics import ListAPIView, get_object_or_404
+from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from rest_framework.request import Request
@@ -14,7 +14,8 @@ from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
 from .models import User, Shop, Category, Product, ProductItem, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
-    Contact, EmailTokenConfirm, UserToken
+    Contact, EmailTokenConfirm
+from rest_framework.authtoken.models import Token
 from .permissions import IsSeller
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
     ProductItemSerializer, ContactSerializer, UserSerializer
@@ -61,7 +62,7 @@ class AccountView(APIView):
 
     def get(self, request):
         serializer = UserSerializer(request.user)
-        return JsonResponse(serializer.data)
+        return Response(serializer.data)
 
     def post(self, request):
         if 'password' in request.data:
@@ -84,7 +85,7 @@ class LoginAccountView(APIView):
         if {'email', 'password'}.issubset(request.data):
             user = authenticate(request, email=request.data['email'], password=request.data['password'])
             if user is not None and user.is_active:
-                token, _ = UserToken.objects.get_or_create(user=user)
+                token, _ = Token.objects.get_or_create(user=user)
                 return JsonResponse({'Status': True, 'token': token.key})
             return JsonResponse({'Status': False, 'error': 'Authentication failed'}, status=400)
         return JsonResponse({'Status': False}, status=400)
@@ -93,7 +94,7 @@ class LoginAccountView(APIView):
 class SellerGoodsView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
-    def post(self, request: Request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         url = request.data.get('url', None)
         if url is None:
             return JsonResponse({'error': 'url is required'}, status=400)
@@ -136,7 +137,7 @@ class ShopView(ListAPIView):
 class ProductItemView(APIView):
     permission_classes = (AllowAny,)
 
-    def get(self, request: Request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         query = Q(shop__is_active=True)
         shop_id = request.query_params.get('shop_id', None)
         category_id = request.query_params.get('category_id', None)
@@ -153,7 +154,7 @@ class ProductItemView(APIView):
 class ShoppingCartView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    def get(self, request: Request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         cart = Order.objects.filter(
             user_id=request.user.id).prefetch_related(
             'ordered_items__product__category').annotate(
@@ -161,7 +162,7 @@ class ShoppingCartView(APIView):
         serializer = OrderSerializer(cart, many=True)
         return Response(serializer.data)
 
-    def post(self, request: Request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         updating_items = request.data.get('items')
         if updating_items is None:
             return JsonResponse({'error': 'items is required'}, status=400)
@@ -182,7 +183,7 @@ class ShoppingCartView(APIView):
                 return JsonResponse({'error': serializer.errors}, status=400)
         return JsonResponse({'Status': True}, status=200)
 
-    def put(self, request: Request, *args, **kwargs):
+    def put(self, request, *args, **kwargs):
         adding_items = request.data.get('items')
         if adding_items:
             try:
@@ -196,7 +197,7 @@ class ShoppingCartView(APIView):
             return JsonResponse({'Status': True}, status=200)
         return JsonResponse({'Status': False}, status=400)
 
-    def delete(self, request: Request, *args, **kwargs):
+    def delete(self, request, *args, **kwargs):
         deleting_items = request.data.get('items')
         if deleting_items:
             deleting_items_list = deleting_items.split(',')
@@ -217,14 +218,14 @@ class ShoppingCartView(APIView):
 class SellerStatusView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
-    def get(self, request: Request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         if request.user.type != UserTypeChoices.SELLER:
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
         shop = request.user.shop
         serializer = ShopSerializer(shop)
         return Response(serializer.data)
 
-    def post(self, request: Request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         if request.user.type != UserTypeChoices.SELLER:
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
         status = request.data.get('is_active')
@@ -242,7 +243,7 @@ class SellerStatusView(APIView):
 class SellerOrdersView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
-    def get(self, request: Request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         if request.user.type != UserTypeChoices.SELLER:
             return JsonResponse({'error': 'Only sellers are allowed'}, status=403)
         order = Order.objects.filter(
@@ -260,12 +261,12 @@ class SellerOrdersView(APIView):
 class ContactView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    def get(self, request: Request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         contact = Contact.objects.filter(user_id=request.user.id)
         serializer = ContactSerializer(contact, many=True)
         return Response(serializer.data)
 
-    def post(self, request: Request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         if {'city', 'street', 'phone'}.issubset(request.data):
             contact_data = request.data.copy()
             contact_data.update({'user': request.user.id})
@@ -276,7 +277,7 @@ class ContactView(APIView):
             return JsonResponse({'error': serializer.errors}, status=400)
         return JsonResponse({'Status': False}, status=400)
 
-    def put(self, request: Request, *args, **kwargs):
+    def put(self, request, *args, **kwargs):
         if 'id' in request.data and request.data['id'].isdigit():
             contact = Contact.objects.filter(id=request.data['id'], user_id=request.user.id).first()
             if contact:
@@ -288,7 +289,7 @@ class ContactView(APIView):
                     return JsonResponse({'error': serializer.errors}, status=400)
         return JsonResponse({'Status': False}, status=400)
 
-    def delete(self, request: Request, *args, **kwargs):
+    def delete(self, request, *args, **kwargs):
         deleting_contacts = request.data.get('items')
         if deleting_contacts:
             deleting_contacts_list = deleting_contacts.split(',')
@@ -307,7 +308,7 @@ class ContactView(APIView):
 class OrderView(APIView):
     permission_classes = (IsAuthenticated,)
 
-    def get(self, request: Request, *args, **kwargs):
+    def get(self, request, *args, **kwargs):
         order = Order.objects.filter(user_id=request.user.id).exclude(
             state=OrderStateChoices.GATHERING).prefetch_related(
             'ordered_items__product__category',
@@ -317,7 +318,7 @@ class OrderView(APIView):
         serializer = OrderSerializer(order, many=True)
         return Response(serializer.data)
 
-    def post(self, request: Request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         if {'id', 'contact'}.issubset(request.data):
             if request.data['id'].isdigit():
                 try:

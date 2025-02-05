@@ -6,9 +6,9 @@ from backend.views import AccountRegisterView, AccountConfirmView, AccountView, 
 
 
 urlpatterns = [
-    path('SELLER/goods', SellerGoodsView.as_view(), name='SELLER-goods'),
-    path('SELLER/status', SellerStatusView.as_view(), name='SELLER-status'),
-    path('SELLER/orders', SellerOrdersView.as_view(), name='SELLER-orders'),
+    path('seller/goods', SellerGoodsView.as_view(), name='seller-goods'),
+    path('seller/status', SellerStatusView.as_view(), name='seller-status'),
+    path('seller/orders', SellerOrdersView.as_view(), name='seller-orders'),
     path('user/register', AccountRegisterView.as_view(), name='user-register'),
     path('user/register/confirm', AccountConfirmView.as_view(), name='user-register-confirm'),
     path('user/info', AccountView.as_view(), name='user-info'),
