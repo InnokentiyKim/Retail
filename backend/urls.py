@@ -5,13 +5,14 @@ from backend.views import AccountRegisterView, AccountConfirmView, AccountView, 
     ContactView, OrderView
 
 
+app_name = 'backend'
 urlpatterns = [
     path('seller/goods', SellerGoodsView.as_view(), name='seller-goods'),
     path('seller/status', SellerStatusView.as_view(), name='seller-status'),
     path('seller/orders', SellerOrdersView.as_view(), name='seller-orders'),
     path('user/register', AccountRegisterView.as_view(), name='user-register'),
     path('user/register/confirm', AccountConfirmView.as_view(), name='user-register-confirm'),
-    path('user/info', AccountView.as_view(), name='user-info'),
+    path('user/account', AccountView.as_view(), name='user-account'),
     path('user/contact', ContactView.as_view(), name='user-contact'),
     path('user/login', LoginAccountView.as_view(), name='user-login'),
     path('user/password_reset', reset_password_request_token, name='password_reset'),

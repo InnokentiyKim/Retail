@@ -40,7 +40,7 @@ class CategorySerializer(serializers.ModelSerializer):
 
 
 class ProductSerializer(serializers.ModelSerializer):
-    category = CategorySerializer(read_only=True)
+    category = serializers.StringRelatedField()
 
     class Meta:
         model = Product
@@ -57,12 +57,11 @@ class PropertySerializer(serializers.ModelSerializer):
 
 
 class ProductPropertySerializer(serializers.ModelSerializer):
-    property = PropertySerializer(read_only=True)
+    property = serializers.StringRelatedField()
 
     class Meta:
         model = ProductProperty
-        fields = ['id', 'property', 'value']
-        read_only_fields = ['id']
+        fields = ['property', 'value']
 
 
 class ProductItemSerializer(serializers.ModelSerializer):
@@ -87,12 +86,16 @@ class OrderItemSerializer(serializers.ModelSerializer):
         }
 
 
+class OrderItemCreateSerializer(OrderItemSerializer):
+    product_item = ProductItemSerializer(read_only=True)
+
+
 class OrderSerializer(serializers.ModelSerializer):
-    ordered_items = OrderItemSerializer(many=True, read_only=True)
+    ordered_items = OrderItemCreateSerializer(many=True, read_only=True)
     contact = ContactSerializer(read_only=True)
-    total = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
 
     class Meta:
         model = Order
-        fields = ['id', 'ordered_items', 'created_at', 'state', 'contact', 'total']
+        fields = ['id', 'ordered_items', 'created_at', 'state', 'contact', 'total_price']
         read_only_fields = ['id']

@@ -1,0 +1,171 @@
+shop: EDShop
+categories:
+  - id: 1
+    name: Смартфоны
+  - id: 2
+    name: Аксессуары
+  - id: 3
+    name: Флеш-накопители
+  - id: 4
+    name: Телевизоры
+
+goods:
+  - id: 1
+    category: 1
+    name: Смартфон Apple iPhone XS Max 512GB (золотистый)
+    price: 110000
+    price_retail: 116990
+    quantity: 14
+    properties:
+      "model": apple/iphone/xs-max
+      "Диагональ (дюйм)": 6.5
+      "Разрешение (пикс)": 2688x1242
+      "Встроенная память (Гб)": 512
+      "Цвет": золотистый
+  - id: 2
+    category: 1
+    name: Смартфон Apple iPhone XR 256GB (красный)
+    price: 65000
+    price_retail: 69990
+    quantity: 9
+    properties:
+      "model": apple/iphone/xr
+      "Диагональ (дюйм)": 6.1
+      "Разрешение (пикс)": 1792x828
+      "Встроенная память (Гб)": 256
+      "Цвет": красный
+  - id: 3
+    category: 1
+    name: Смартфон Apple iPhone XR 256GB (черный)
+    price: 65000
+    price_retail: 69990
+    quantity: 5
+    properties:
+      "model": apple/iphone/xr
+      "Диагональ (дюйм)": 6.1
+      "Разрешение (пикс)": 1792x828
+      "Встроенная память (Гб)": 256
+      "Цвет": черный
+  - id: 4
+    category: 1
+    name: Смартфон Apple iPhone XR 128GB (синий)
+    price: 60000
+    price_retail: 64990
+    quantity: 7
+    properties:
+      "model": apple/iphone/xr
+      "Диагональ (дюйм)": 6.1
+      "Разрешение (пикс)": 1792x828
+      "Встроенная память (Гб)": 256
+      "Цвет": синий
+  - id: 5
+    category: 1
+    name: Smartphone Samsung Galaxy S20 128GB (black)
+    price: 80000
+    price_retail: 84990
+    quantity: 5
+    properties:
+      "model": samsung/galaxy-s20
+      "Screen Size (inches)": 6.2
+      "Resolution (pixels)": 3200x1440
+      "Internal Memory (GB)": 128
+      "Color": black
+  - id: 6
+    category: 1
+    name: Smartphone Samsung Galaxy Note20 256GB (mystic bronze)
+    price: 95000
+    price_retail: 99990
+    quantity: 3
+    properties:
+      "model": samsung/galaxy-note20
+      "Screen Size (inches)": 6.7
+      "Resolution (pixels)": 2400x1080
+      "Internal Memory (GB)": 256
+      "Color": mystic bronze
+  - id: 7
+    category: 3
+    name: USB Flash Drive SanDisk Ultra Flair 64GB (silver)
+    price: 1500
+    price_retail: 1990
+    quantity: 10
+    properties:
+      "model": sandisk/ultra-flair-64gb
+      "Capacity (GB)": 64
+      "Color": silver
+  - id: 8
+    category: 3
+    name: USB Flash Drive Kingston DataTraveler 32GB (red)
+    price: 1000
+    price_retail: 1290
+    quantity: 8
+    properties:
+      "model": kingston/datatraveler-32gb
+      "Capacity (GB)": 32
+      "Color": red
+  - id: 9
+    category: 1
+    name: Smartphone Xiaomi Mi 10T Pro 256GB (cosmic black)
+    price: 70000
+    price_retail: 74990
+    quantity: 6
+    properties:
+      "model": xiaomi/mi-10t-pro
+      "Screen Size (inches)": 6.67
+      "Resolution (pixels)": 2400x1080
+      "Internal Memory (GB)": 256
+      "Color": cosmic black
+  - id: 10
+    category: 4
+    name: Samsung QLED Q90R 65" 4K UHD Smart TV
+    price: 2500
+    price_retail: 2999
+    quantity: 4
+    properties:
+      "model": samsung/qled-q90r
+      "Screen Size (inches)": 65
+      "Resolution (pixels)": 3840x2160
+      "Smart TV": true
+  - id: 11
+    category: 4
+    name: LG OLED CX 55" 4K UHD Smart TV
+    price: 1800
+    price_retail: 1999
+    quantity: 7
+    properties:
+      "model": lg/oled-cx
+      "Screen Size (inches)": 55
+      "Resolution (pixels)": 3840x2160
+      "Smart TV": true
+  - id: 12
+    category: 4
+    name: Sony Bravia X900H 75" 4K UHD Smart TV
+    price: 3000
+    price_retail: 3499
+    quantity: 3
+    properties:
+      "model": sony/bravia-x900h
+      "Screen Size (inches)": 75
+      "Resolution (pixels)": 3840x2160
+      "Smart TV": true
+  - id: 13
+    category: 4
+    name: TCL 6-Series 55" 4K UHD Smart TV
+    price: 700
+    price_retail: 799
+    quantity: 10
+    properties:
+      "model": tcl/6-series
+      "Screen Size (inches)": 55
+      "Resolution (pixels)": 3840x2160
+      "Smart TV": true
+  - id: 14
+    category: 4
+    name: Vizio P-Series Quantum 65" 4K UHD Smart TV
+    price: 1200
+    price_retail: 1299
+    quantity: 5
+    properties:
+      "model": vizio/p-series-quantum
+      "Screen Size (inches)": 65
+      "Resolution (pixels)": 3840x2160
+      "Smart TV": true

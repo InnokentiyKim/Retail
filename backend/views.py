@@ -10,11 +10,12 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework import status
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
 from .models import User, Shop, Category, Product, ProductItem, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
-    Contact, EmailTokenConfirm
+    Contact, EmailTokenConfirm, Property, ProductProperty
 from rest_framework.authtoken.models import Token
 from .permissions import IsSeller
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
@@ -51,9 +52,20 @@ class AccountConfirmView(APIView):
                 token.user.is_active = True
                 token.user.save()
                 token.delete()
-                return JsonResponse({'Status': True}, status=201)
+                return JsonResponse({'Status': True}, status=200)
             else:
                 return JsonResponse({'Status': False, 'error': 'Неверно указан email или токен'}, status=400)
+        return JsonResponse({'Status': False}, status=400)
+
+
+class LoginAccountView(APIView):
+    def post(self, request):
+        if {'email', 'password'}.issubset(request.data):
+            user = authenticate(request, username=request.data['email'], password=request.data['password'])
+            if user and user.is_active:
+                token, _ = Token.objects.get_or_create(user=user)
+                return JsonResponse({'Status': True, 'token': token.key})
+            return JsonResponse({'Status': False, 'error': 'Authentication failed'}, status=403)
         return JsonResponse({'Status': False}, status=400)
 
 
@@ -75,20 +87,9 @@ class AccountView(APIView):
         user_serializer = UserSerializer(request.user, data=request.data, partial=True)
         if user_serializer.is_valid():
             user_serializer.save()
-            return JsonResponse({'Status': True}, status=201)
+            return JsonResponse({'Status': True}, status=200)
         else:
             return JsonResponse({'Status': False, 'errors': user_serializer.errors}, status=400)
-
-
-class LoginAccountView(APIView):
-    def post(self, request):
-        if {'email', 'password'}.issubset(request.data):
-            user = authenticate(request, email=request.data['email'], password=request.data['password'])
-            if user is not None and user.is_active:
-                token, _ = Token.objects.get_or_create(user=user)
-                return JsonResponse({'Status': True, 'token': token.key})
-            return JsonResponse({'Status': False, 'error': 'Authentication failed'}, status=400)
-        return JsonResponse({'Status': False}, status=400)
 
 
 class SellerGoodsView(APIView):
@@ -101,24 +102,31 @@ class SellerGoodsView(APIView):
         validate_url = URLValidator(verify_exists=True)
         try:
             validate_url(url)
-        except ValidationError:
-            return JsonResponse({'error': 'url is invalid'}, status=400)
+        except ValidationError as error:
+            return JsonResponse({'status': False, 'error': str(error)}, status=400)
         stream = get(url).content
         data = yaml.safe_load(stream)
         shop, _ = Shop.objects.get_or_create(name=data['shop'], user_id=request.user.id)
         for category in data['categories']:
             product_category, _ = Category.objects.get_or_create(id=category['id'], name=category['name'])
+            product_category.shops.add(shop)
+            product_category.save()
         for item in data['goods']:
-            product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category_id'], shop_id=shop.id)
-            if not created:
-                ProductItem.objects.filter(product_id=product.id).delete()
-            product_details = ProductItem.objects.create(
+            product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category'])
+            product_items = ProductItem.objects.create(
                 product_id=product.id,
+                shop_id=shop.id,
                 price=item['price'],
                 price_retail=item['price_retail'],
-                quantity=item['quantity'],
-                parameters=item['parameters'],
+                quantity=item['quantity']
             )
+            for key, value in item['properties'].items():
+                property_instance, _ = Property.objects.get_or_create(name=key)
+                ProductProperty.objects.create(
+                    product_item_id=product_items.id,
+                    property_id=property_instance.id,
+                    value=value
+                )
         return JsonResponse({'Status': True}, status=200)
 
 
