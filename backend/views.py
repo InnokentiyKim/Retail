@@ -10,7 +10,7 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework import status
+from rest_framework import status as http_status
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
@@ -24,7 +24,7 @@ from backend.signals import new_user_registered, new_order
 
 
 class AccountRegisterView(APIView):
-    def post(self, request):
+    def post(self, request: Request):
         if {'email', 'username', 'first_name', 'last_name', 'password'}.issubset(request.data):
             try:
                 validate_password(request.data['password'])
@@ -113,7 +113,7 @@ class SellerGoodsView(APIView):
             product_category.save()
         for item in data['goods']:
             product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category'])
-            product_items = ProductItem.objects.create(
+            product_item = ProductItem.objects.create(
                 product_id=product.id,
                 shop_id=shop.id,
                 price=item['price'],
@@ -123,7 +123,7 @@ class SellerGoodsView(APIView):
             for key, value in item['properties'].items():
                 property_instance, _ = Property.objects.get_or_create(name=key)
                 ProductProperty.objects.create(
-                    product_item_id=product_items.id,
+                    product_item_id=product_item.id,
                     property_id=property_instance.id,
                     value=value
                 )
@@ -178,7 +178,7 @@ class ShoppingCartView(APIView):
             updating_items_dict = json.loads(updating_items)
         except ValueError:
             return JsonResponse({'error': 'items format is invalid'}, status=400)
-        cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.GATHERING)
+        cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.CREATED)
         for item in updating_items_dict:
             item.update({'order_id': cart.id})
             serializer = OrderItemSerializer(item)
@@ -198,7 +198,7 @@ class ShoppingCartView(APIView):
                 adding_items_dict = json.loads(adding_items)
             except ValueError:
                 return JsonResponse({'error': 'items format is invalid'}, status=400)
-            cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.GATHERING)
+            cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.CREATED)
             for item in adding_items_dict:
                 if type(item['id']) is int and type(item['quantity']) is int:
                     OrderItem.objects.filter(order_id=cart.id, id=item['id']).update(quantity=item['quantity'])
@@ -209,7 +209,7 @@ class ShoppingCartView(APIView):
         deleting_items = request.data.get('items')
         if deleting_items:
             deleting_items_list = deleting_items.split(',')
-            cart = Order.objects.filter(user_id=request.user.id, state=OrderStateChoices.GATHERING)
+            cart = Order.objects.filter(user_id=request.user.id, state=OrderStateChoices.CREATED)
             if cart:
                 query = Q()
                 has_deleting_items = False
@@ -250,11 +250,11 @@ class SellerOrdersView(APIView):
     def get(self, request, *args, **kwargs):
         orders = Order.objects.filter(
             ordered_items__product__shop__user_id=request.user.id).exclude(
-            state=OrderStateChoices.GATHERING).prefetch_related(
-            'ordered_items__product__category',
-            'ordered_items__product__details__parameters').select_related(
+            state=OrderStateChoices.CREATED).prefetch_related(
+            'ordered_items__product_item__product__category',
+            'ordered_items__product_item__product_properties').select_related(
             'contact').annotate(
-            total_price=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))
+            total_price=Sum(F('ordered_items__quantity') * F('ordered_items__product_item__price'))
         ).distinct()
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
@@ -312,7 +312,7 @@ class OrderView(APIView):
 
     def get(self, request, *args, **kwargs):
         order = Order.objects.filter(user_id=request.user.id).exclude(
-            state=OrderStateChoices.GATHERING).prefetch_related(
+            state=OrderStateChoices.CREATED).prefetch_related(
             'ordered_items__product__category',
             'ordered_items__product__details__parameters').select_related('contact').annotate(
             total_sum=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))
@@ -327,10 +327,10 @@ class OrderView(APIView):
                     is_updated = Order.objects.filter(
                         user_id=request.user.id, id=request.data['id']).update(
                         contact_id=request.data['contact'],
-                        state=OrderStateChoices.NEW)
+                        state=OrderStateChoices.CREATED)
                 except IntegrityError as err:
                     return JsonResponse({'error': str(err)}, status=400)
                 if is_updated:
                     new_order.send(sender=self.__class__, user_id=request.user.id)
                     return JsonResponse({'Status': True}, status=200)
-        return JsonResponse({'Status': False}, status=400)
+        return JsonResponse({'Status': False}, status=http_status.HTTP_400_BAD_REQUEST)
