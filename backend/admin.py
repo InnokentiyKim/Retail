@@ -1,3 +1,6 @@
+import csv
+import datetime
+from django.http import HttpResponse
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm
@@ -14,6 +17,27 @@ class ProductInline(admin.TabularInline):
 class ProductItemInline(admin.TabularInline):
     model = ProductItem
     extra = 1
+
+
+def export_to_csv(modeladmin, request, queryset):
+    options = modeladmin.model._meta
+    content_disposition = f"attachment; filename={options.verbose_name}.csv"
+    response = HttpResponse(content_type="text/csv")
+    response['Content-Disposition'] = content_disposition
+    writer = csv.writer(response)
+    fields = [field for field in options.get_fields() if not field.many_to_many and not field.one_to_many]
+    writer.writerow([field.verbose_name for field in fields])
+    for item in queryset:
+        data_row = []
+        for field in fields:
+            value = getattr(item, field.name)
+            if isinstance(value, datetime.datetime):
+                value = value.strftime("%Y-%m-%d")
+            data_row.append(value)
+        writer.writerow(data_row)
+    return response
+
+export_to_csv.short_description = "Export to CSV"
 
 
 @admin.register(User)
@@ -75,13 +99,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ('user', 'created_at', 'state', 'contact')
     date_hierarchy = 'created_at'
     inlines = [OrderItemInline]
-
-
-@admin.register(Contact)
-class ContactAdmin(admin.ModelAdmin):
-    list_display = ('user', 'phone', 'country', 'city', 'street', 'house', 'structure', 'building', 'apartment')
-    list_filter = ('user', 'country', 'city')
-    search_fields = ('user', 'country', 'city', 'street')
+    actions = [export_to_csv]
 
 
 @admin.register(EmailTokenConfirm)

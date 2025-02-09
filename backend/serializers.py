@@ -6,10 +6,10 @@ from rest_framework import serializers
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
-        fields = ['id', 'phone', 'country', 'city', 'street', 'house', 'apartment']
+        fields = ['id', 'user', 'phone', 'country', 'city', 'street', 'house', 'apartment', 'structure', 'building']
         read_only_fields = ['id']
         extra_kwargs = {
-            'user': {'read_only': True},
+            'user': {'write_only': True},
             'structure': {'required': False},
             'building': {'required': False},
         }

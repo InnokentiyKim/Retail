@@ -154,7 +154,7 @@ class ProductItemView(APIView):
         if category_id:
             query &= Q(product__category_id=category_id)
         queryset = ProductItem.objects.filter(query).select_related(
-            'product__shop', 'product__category').distinct()
+            'shop', 'product__category').distinct()
         serializer = ProductItemSerializer(queryset, many=True)
         return Response(serializer.data)
 
@@ -233,7 +233,8 @@ class SellerStatusView(APIView):
 
     def post(self, request, *args, **kwargs):
         seller_status = request.data.get('is_active')
-        if seller_status:
+        print(seller_status)
+        if seller_status is not None:
             try:
                 Shop.objects.filter(user_id=request.user.id).update(is_active=bool(seller_status))
                 return JsonResponse({'Status': True}, status=200)
@@ -249,8 +250,8 @@ class SellerOrdersView(APIView):
 
     def get(self, request, *args, **kwargs):
         orders = Order.objects.filter(
-            ordered_items__product__shop__user_id=request.user.id).exclude(
-            state=OrderStateChoices.CREATED).prefetch_related(
+            ordered_items__product_item__shop__user_id=request.user.id).exclude(
+            state=OrderStateChoices.PREPARING).prefetch_related(
             'ordered_items__product_item__product__category',
             'ordered_items__product_item__product_properties').select_related(
             'contact').annotate(
@@ -269,13 +270,13 @@ class ContactView(APIView):
         return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
-        if {'city', 'street', 'phone'}.issubset(request.data):
+        if {'city', 'street', 'house', 'apartment', 'phone'}.issubset(request.data):
             contact_data = request.data.copy()
             contact_data.update({'user': request.user.id})
             serializer = ContactSerializer(data=contact_data)
             if serializer.is_valid():
                 serializer.save()
-                return JsonResponse({'Status': True}, status=200)
+                return JsonResponse({'Status': True}, status=201)
             return JsonResponse({'error': serializer.errors}, status=400)
         return JsonResponse({'Status': False}, status=400)
 
@@ -307,15 +308,16 @@ class ContactView(APIView):
         return JsonResponse({'Status': False}, status=400)
 
 
+
 class OrderView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
         order = Order.objects.filter(user_id=request.user.id).exclude(
             state=OrderStateChoices.CREATED).prefetch_related(
-            'ordered_items__product__category',
-            'ordered_items__product__details__parameters').select_related('contact').annotate(
-            total_sum=Sum(F('ordered_items__quantity') * F('order_items__product__details__price'))
+            'ordered_items__product_item__product__category',
+            'ordered_items__product_item__product_properties').select_related('contact').annotate(
+            total_sum=Sum(F('ordered_items__quantity') * F('order_items__product_item__price'))
         ).distinct()
         serializer = OrderSerializer(order, many=True)
         return Response(serializer.data)
