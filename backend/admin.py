@@ -3,7 +3,8 @@ import datetime
 from django.http import HttpResponse
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm
+from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm, \
+    CategoryCoupon, ProductCoupon
 
 
 class ContactInline(admin.TabularInline):
@@ -100,6 +101,22 @@ class OrderAdmin(admin.ModelAdmin):
     date_hierarchy = 'created_at'
     inlines = [OrderItemInline]
     actions = [export_to_csv]
+
+
+@admin.register(CategoryCoupon)
+class CategoryCouponAdmin(admin.ModelAdmin):
+    list_display = ('code', 'valid_from', 'valid_to', 'discount', 'active')
+    list_filter = ('valid_from', 'valid_to', 'active')
+    search_fields = ('code', 'categories')
+    ordering = ('created_at', )
+
+
+@admin.register(ProductCoupon)
+class ProductCouponAdmin(admin.ModelAdmin):
+    list_display = ('code', 'valid_from', 'valid_to', 'discount', 'active')
+    list_filter = ('valid_from', 'valid_to', 'active')
+    search_fields = ('code', 'product_items')
+    ordering = ('created_at', )
 
 
 @admin.register(EmailTokenConfirm)

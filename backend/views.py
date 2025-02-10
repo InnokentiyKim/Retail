@@ -178,7 +178,7 @@ class ShoppingCartView(APIView):
             updating_items_dict = json.loads(updating_items)
         except ValueError:
             return JsonResponse({'error': 'items format is invalid'}, status=400)
-        cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.CREATED)
+        cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.PREPARING)
         for item in updating_items_dict:
             item.update({'order_id': cart.id})
             serializer = OrderItemSerializer(item)
