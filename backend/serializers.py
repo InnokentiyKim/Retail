@@ -1,5 +1,5 @@
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty
-from backend.models import User, Shop, Category, Product
+from backend.models import User, Shop, Category, Product, Coupon
 from rest_framework import serializers
 
 
@@ -98,4 +98,11 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = ['id', 'ordered_items', 'created_at', 'state', 'contact', 'total_price']
+        read_only_fields = ['id']
+
+
+class CouponSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Coupon
+        fields = ['id', 'code', 'valid_from', 'valid_to', 'discount', 'active']
         read_only_fields = ['id']

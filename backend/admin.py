@@ -1,10 +1,10 @@
-import csv
-import datetime
-from django.http import HttpResponse
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm, \
-    CategoryCoupon, ProductCoupon
+from .tasks import export_to_csv
+from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm, Coupon
+
+
+export_to_csv.short_description = "Export to CSV"
 
 
 class ContactInline(admin.TabularInline):
@@ -18,27 +18,6 @@ class ProductInline(admin.TabularInline):
 class ProductItemInline(admin.TabularInline):
     model = ProductItem
     extra = 1
-
-
-def export_to_csv(modeladmin, request, queryset):
-    options = modeladmin.model._meta
-    content_disposition = f"attachment; filename={options.verbose_name}.csv"
-    response = HttpResponse(content_type="text/csv")
-    response['Content-Disposition'] = content_disposition
-    writer = csv.writer(response)
-    fields = [field for field in options.get_fields() if not field.many_to_many and not field.one_to_many]
-    writer.writerow([field.verbose_name for field in fields])
-    for item in queryset:
-        data_row = []
-        for field in fields:
-            value = getattr(item, field.name)
-            if isinstance(value, datetime.datetime):
-                value = value.strftime("%Y-%m-%d")
-            data_row.append(value)
-        writer.writerow(data_row)
-    return response
-
-export_to_csv.short_description = "Export to CSV"
 
 
 @admin.register(User)
@@ -103,20 +82,12 @@ class OrderAdmin(admin.ModelAdmin):
     actions = [export_to_csv]
 
 
-@admin.register(CategoryCoupon)
-class CategoryCouponAdmin(admin.ModelAdmin):
+@admin.register(Coupon)
+class CouponAdmin(admin.ModelAdmin):
     list_display = ('code', 'valid_from', 'valid_to', 'discount', 'active')
     list_filter = ('valid_from', 'valid_to', 'active')
-    search_fields = ('code', 'categories')
-    ordering = ('created_at', )
-
-
-@admin.register(ProductCoupon)
-class ProductCouponAdmin(admin.ModelAdmin):
-    list_display = ('code', 'valid_from', 'valid_to', 'discount', 'active')
-    list_filter = ('valid_from', 'valid_to', 'active')
-    search_fields = ('code', 'product_items')
-    ordering = ('created_at', )
+    search_fields = ('code', 'discount')
+    date_hierarchy = 'valid_from'
 
 
 @admin.register(EmailTokenConfirm)

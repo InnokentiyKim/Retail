@@ -15,7 +15,7 @@ from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
 from .models import User, Shop, Category, Product, ProductItem, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
-    Contact, EmailTokenConfirm, Property, ProductProperty
+    Contact, EmailTokenConfirm, Property, ProductProperty, Coupon
 from rest_framework.authtoken.models import Token
 from .permissions import IsSeller, IsBuyer
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
@@ -233,7 +233,6 @@ class SellerStatusView(APIView):
 
     def post(self, request, *args, **kwargs):
         seller_status = request.data.get('is_active')
-        print(seller_status)
         if seller_status is not None:
             try:
                 Shop.objects.filter(user_id=request.user.id).update(is_active=bool(seller_status))
@@ -254,9 +253,8 @@ class SellerOrdersView(APIView):
             state=OrderStateChoices.PREPARING).prefetch_related(
             'ordered_items__product_item__product__category',
             'ordered_items__product_item__product_properties').select_related(
-            'contact').annotate(
-            total_price=Sum(F('ordered_items__quantity') * F('ordered_items__product_item__price'))
-        ).distinct()
+            'contact').annotate(F('total_price')).distinct()
+            # total_price=Sum(F('ordered_items__quantity') * F('ordered_items__product_item__price'))
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -308,30 +306,45 @@ class ContactView(APIView):
         return JsonResponse({'Status': False}, status=400)
 
 
-
 class OrderView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
-        order = Order.objects.filter(user_id=request.user.id).exclude(
+        order = (Order.objects.filter(user_id=request.user.id).exclude(
             state=OrderStateChoices.CREATED).prefetch_related(
             'ordered_items__product_item__product__category',
-            'ordered_items__product_item__product_properties').select_related('contact').annotate(
-            total_sum=Sum(F('ordered_items__quantity') * F('order_items__product_item__price'))
-        ).distinct()
+            'ordered_items__product_item__product_properties')
+                 .select_related('contact').annotate(F('total_price'))
+                 .distinct())
+        # total_sum = Sum(F('ordered_items__quantity') * F('order_items__product_item__price'))
         serializer = OrderSerializer(order, many=True)
         return Response(serializer.data)
 
     def post(self, request, *args, **kwargs):
+        coupon = None
         if {'id', 'contact'}.issubset(request.data):
             if request.data['id'].isdigit():
+                coupon_code = request.data.get('coupon')
+                if coupon_code is not None:
+                    coupon = Coupon.objects.filter(code__exact=coupon_code).first()
+                    if coupon is None:
+                        return JsonResponse({'error': 'Купон не существует'}, status=http_status.HTTP_400_BAD_REQUEST)
+                    if not coupon.is_valid():
+                        return JsonResponse({'error': 'Купон устарел или неактивен'}, status=http_status.HTTP_400_BAD_REQUEST)
                 try:
-                    is_updated = Order.objects.filter(
-                        user_id=request.user.id, id=request.data['id']).update(
-                        contact_id=request.data['contact'],
-                        state=OrderStateChoices.CREATED)
+                    if coupon:
+                        is_updated = Order.objects.filter(
+                            user_id=request.user.id, id=request.data['id']).update(
+                            contact_id=request.data['contact'],
+                            coupon_id=coupon.id,
+                            state=OrderStateChoices.CREATED)
+                    else:
+                        is_updated = Order.objects.filter(
+                            user_id=request.user.id, id=request.data['id']).update(
+                            contact_id=request.data['contact'],
+                            state=OrderStateChoices.CREATED)
                 except IntegrityError as err:
-                    return JsonResponse({'error': str(err)}, status=400)
+                    return JsonResponse({'error': str(err)}, status=http_status.HTTP_400_BAD_REQUEST)
                 if is_updated:
                     new_order.send(sender=self.__class__, user_id=request.user.id)
                     return JsonResponse({'Status': True}, status=200)

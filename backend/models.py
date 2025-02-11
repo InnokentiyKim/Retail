@@ -1,4 +1,4 @@
-from dataclasses import fields
+from django.utils import timezone
 
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
@@ -6,8 +6,6 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 import uuid
-
-from rest_framework.exceptions import ValidationError
 
 
 class OrderStateChoices(models.IntegerChoices):
@@ -74,7 +72,7 @@ class User(AbstractUser):
     )
 
     def __str__(self):
-        return f"{self.first_name} {self.last_name} ({self.username}) - {self.type}"
+        return f"{self.username} {self.email} - {self.type}"
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -212,6 +210,26 @@ class Contact(models.Model):
         verbose_name_plural = 'Список контактов пользователей'
 
 
+class Coupon(models.Model):
+    code = models.CharField(max_length=60, unique=True, verbose_name='Код купона')
+    valid_from = models.DateTimeField(verbose_name='Дата начала действия купона')
+    valid_to = models.DateTimeField(verbose_name='Дата окончания действия купона')
+    discount = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)],
+                                   verbose_name='Скидка', help_text='В процентах от 0 до 100')
+    active = models.BooleanField(default=True, verbose_name='Активен')
+    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания купона')
+
+    class Meta:
+        verbose_name = 'Скидочный купон'
+        verbose_name_plural = 'Список скидочных купонов'
+
+    def __str__(self):
+        return self.code
+
+    def is_valid(self):
+        return (self.valid_from <= timezone.now() <= self.valid_to) and self.active
+
+
 class Order(models.Model):
     objects = models.manager.Manager()
 
@@ -221,6 +239,7 @@ class Order(models.Model):
                                 verbose_name='Состояние заказа')
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, blank=True, null=True, related_name='orders',
                                 verbose_name='Контакт')
+    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, blank=True, null=True, verbose_name='Купон')
 
     def __str__(self):
         return f"{self.created_at} - {self.state}"
@@ -232,6 +251,8 @@ class Order(models.Model):
 
     @property
     def total_price(self):
+        if self.coupon and self.coupon.is_valid():
+            return (1 - self.coupon.discount / 100) * sum(item.get_cost() for item in self.ordered_items.all())
         return sum(item.get_cost() for item in self.ordered_items.all())
 
 
@@ -255,68 +276,6 @@ class OrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product_item.product.name}"
-
-
-class Coupon(models.Model):
-    code = models.CharField(max_length=50, unique=True, verbose_name='Код купона')
-    valid_from = models.DateTimeField(verbose_name='Дата начала действия купона')
-    valid_to = models.DateTimeField(verbose_name='Дата окончания действия купона')
-    discount = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)],
-                                   verbose_name='Скидка', help_text='В процентах от 0 до 100')
-    active = models.BooleanField(default=True, verbose_name='Активен')
-
-    class Meta:
-        verbose_name = 'Купон'
-        verbose_name_plural = 'Список купонов'
-
-    def __str__(self):
-        return self.code
-
-
-class CategoryCoupon(models.Model):
-    code = models.CharField(max_length=50, unique=True, verbose_name='Код купона')
-    valid_from = models.DateTimeField(verbose_name='Дата начала действия купона')
-    valid_to = models.DateTimeField(verbose_name='Дата окончания действия купона')
-    discount = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)],
-                                   verbose_name='Скидка', help_text='В процентах от 0 до 100')
-    active = models.BooleanField(default=True, verbose_name='Активен')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания купона')
-    categories = models.ManyToManyField(Category, related_name='category_coupons', verbose_name='Категории')
-
-    class Meta:
-        verbose_name = 'Купон для категории товаров'
-        verbose_name_plural = 'Список купонов для категорий товаров'
-
-    def save(self, *args, **kwargs):
-        if ProductCoupon.objects.filter(code=self.code).exists():
-            raise ValidationError("Купон с таким кодом уже существует")
-        return super(CategoryCoupon, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return self.code
-
-
-class ProductCoupon(models.Model):
-    code = models.CharField(max_length=50, unique=True, null=False, verbose_name='Код купона')
-    valid_from = models.DateTimeField(verbose_name='Дата начала действия купона')
-    valid_to = models.DateTimeField(verbose_name='Дата окончания действия купона')
-    discount = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)],
-                                   verbose_name='Скидка', help_text='В процентах от 0 до 100')
-    active = models.BooleanField(default=True, verbose_name='Активен')
-    created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания купона')
-    product_items = models.ManyToManyField(ProductItem, related_name='product_coupons', verbose_name='Продукты')
-
-    class Meta:
-        verbose_name = 'Купон для товаров'
-        verbose_name_plural = 'Список купонов для товаров'
-
-    def save(self, *args, **kwargs):
-        if CategoryCoupon.objects.filter(code=self.code).exists():
-            raise ValidationError("Купон с таким кодом уже существует")
-        return super(ProductCoupon, self).save(*args, **kwargs)
-
-    def __str__(self):
-        return self.code
 
 
 class EmailTokenConfirm(models.Model):
