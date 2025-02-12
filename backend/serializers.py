@@ -106,3 +106,44 @@ class CouponSerializer(serializers.ModelSerializer):
         model = Coupon
         fields = ['id', 'code', 'valid_from', 'valid_to', 'discount', 'active']
         read_only_fields = ['id']
+
+
+
+class ShopCategorySerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    name = serializers.CharField()
+
+class ShopProductSerializer(serializers.Serializer):
+    id = serializers.IntegerField()
+    category = serializers.IntegerField()
+    name = serializers.CharField()
+    price = serializers.DecimalField(max_digits=10, decimal_places=2)
+    price_retail = serializers.DecimalField(max_digits=10, decimal_places=2)
+    quantity = serializers.IntegerField()
+    properties = serializers.DictField()
+
+    def validate_category(self, value):
+        if value < 0:
+            raise serializers.ValidationError("Категорией может быть только положительное число")
+        return value
+
+    def validate_price(self, value):
+        if value < 0 or value > 100000000:
+            raise serializers.ValidationError("Цена не может быть ниже 0 или превышать 10 000 000")
+        return value
+
+    def validate_price_retail(self, value):
+        if value < 0 or value > 100000000:
+            raise serializers.ValidationError("Розничная цена не может быть ниже 0 или превышать 10 000 000")
+        return value
+
+    def validate_quantity(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Количество должно быть больше 0")
+        return value
+
+
+class ShopGoodsImportSerializer(serializers.Serializer):
+    shop = serializers.CharField()
+    categories = ShopCategorySerializer(many=True)
+    goods = ShopProductSerializer(many=True)

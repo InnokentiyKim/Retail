@@ -1,15 +1,8 @@
 import csv
 import datetime
-
 from celery import shared_task
 from django.core.mail import EmailMultiAlternatives
-from io import BytesIO
-
 from django.http import HttpResponse
-from django.template.loader import render_to_string
-from django.conf import settings
-from .models import Order
-
 
 
 @shared_task
@@ -36,4 +29,3 @@ def export_to_csv(modeladmin, request, queryset):
             data_row.append(value)
         writer.writerow(data_row)
     return response
-

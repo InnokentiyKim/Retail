@@ -3,7 +3,6 @@ import yaml
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError
 from django.db.models import Sum, F, Q
-from django.contrib.auth import authenticate
 from django.contrib.auth.password_validation import validate_password
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -14,13 +13,12 @@ from rest_framework import status as http_status
 from django.core.validators import URLValidator
 from django.http import JsonResponse
 from requests import get
-from .models import User, Shop, Category, Product, ProductItem, Order, OrderStateChoices, OrderItem, UserTypeChoices, \
+from .models import Shop, Category, Product, ProductItem, Order, OrderStateChoices, OrderItem, \
     Contact, EmailTokenConfirm, Property, ProductProperty, Coupon
-from rest_framework.authtoken.models import Token
 from .permissions import IsSeller, IsBuyer
 from .serializers import CategorySerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, \
-    ProductItemSerializer, ContactSerializer, UserSerializer
-from backend.signals import new_user_registered, new_order
+    ProductItemSerializer, ContactSerializer, UserSerializer, ShopGoodsImportSerializer
+from backend.signals import new_order
 
 
 class AccountRegisterView(APIView):
@@ -58,17 +56,6 @@ class AccountConfirmView(APIView):
         return JsonResponse({'Status': False}, status=400)
 
 
-class LoginAccountView(APIView):
-    def post(self, request):
-        if {'email', 'password'}.issubset(request.data):
-            user = authenticate(request, username=request.data['email'], password=request.data['password'])
-            if user and user.is_active:
-                token, _ = Token.objects.get_or_create(user=user)
-                return JsonResponse({'Status': True, 'token': token.key})
-            return JsonResponse({'Status': False, 'error': 'Authentication failed'}, status=403)
-        return JsonResponse({'Status': False}, status=400)
-
-
 class AccountView(APIView):
     permission_classes = (IsAuthenticated,)
 
@@ -96,22 +83,30 @@ class SellerGoodsView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
     def post(self, request, *args, **kwargs):
-        url = request.data.get('url', None)
-        if url is None:
-            return JsonResponse({'error': 'url is required'}, status=400)
-        validate_url = URLValidator(verify_exists=True)
-        try:
-            validate_url(url)
-        except ValidationError as error:
-            return JsonResponse({'status': False, 'error': str(error)}, status=400)
-        stream = get(url).content
+        # url = request.data.get('url', None)
+        # if url is None:
+        #     return JsonResponse({'error': 'url is required'}, status=400)
+        # validate_url = URLValidator()
+        # try:
+        #     validate_url(url)
+        # except ValidationError as error:
+        #     return JsonResponse({'status': False, 'error': str(error)}, status=400)
+        # stream = get(url).content
+        with open("data/shops_data.yaml", 'rb') as file:
+            stream = file.read()
         data = yaml.safe_load(stream)
-        shop, _ = Shop.objects.get_or_create(name=data['shop'], user_id=request.user.id)
-        for category in data['categories']:
+        serializer = ShopGoodsImportSerializer(data=data)
+        if serializer.is_valid():
+            valid_data = serializer.validated_data
+        else:
+            return JsonResponse({'status': False, 'error': 'Неверный формат или тип данных'}, status=400)
+        shop, _ = Shop.objects.get_or_create(name=valid_data['shop'], user_id=request.user.id)
+        print(valid_data)
+        for category in valid_data['categories']:
             product_category, _ = Category.objects.get_or_create(id=category['id'], name=category['name'])
             product_category.shops.add(shop)
             product_category.save()
-        for item in data['goods']:
+        for item in valid_data['goods']:
             product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category'])
             product_item = ProductItem.objects.create(
                 product_id=product.id,

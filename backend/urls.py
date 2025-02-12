@@ -1,6 +1,8 @@
 from django.urls import path
 from django_rest_passwordreset.views import reset_password_request_token, reset_password_confirm
-from backend.views import AccountRegisterView, AccountConfirmView, AccountView, LoginAccountView, SellerGoodsView, \
+from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
+
+from backend.views import AccountRegisterView, AccountConfirmView, AccountView, SellerGoodsView, \
     CategoryView, ShopView, ProductItemView, ShoppingCartView, SellerStatusView, SellerOrdersView, \
     ContactView, OrderView
 
@@ -14,7 +16,8 @@ urlpatterns = [
     path('user/register/confirm', AccountConfirmView.as_view(), name='user-register-confirm'),
     path('user/account', AccountView.as_view(), name='user-account'),
     path('user/contact', ContactView.as_view(), name='user-contact'),
-    path('user/login', LoginAccountView.as_view(), name='user-login'),
+    path('user/login', TokenObtainPairView.as_view(), name='token_obtain_pair'),
+    path('user/login/refresh', TokenRefreshView.as_view(), name='token_refresh'),
     path('user/password_reset', reset_password_request_token, name='password_reset'),
     path('user/password_reset/confirm', reset_password_confirm, name='password_reset_confirm'),
     path('categories', CategoryView.as_view(), name='categories'),

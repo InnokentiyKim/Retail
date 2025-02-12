@@ -8,14 +8,14 @@ from django.db import models
 import uuid
 
 
-class OrderStateChoices(models.IntegerChoices):
-    PREPARING = 1, "Подготавливается"
-    CREATED = 2, "Создан"
-    CONFIRMED = 3, "Подтвержден"
-    ASSEMBLED = 4, "Собран"
-    SENT = 5, "Отправлен"
-    DELIVERED = 6, "Доставлен"
-    CANCELED = 7, "Отменен"
+class OrderStateChoices(models.TextChoices):
+    PREPARING = "PREPARING", "Подготавливается"
+    CREATED = "CREATED", "Создан"
+    CONFIRMED = "CONFIRMED", "Подтвержден"
+    ASSEMBLED = "ASSEMBLED", "Собран"
+    SENT = "SENT", "Отправлен"
+    DELIVERED = "DELIVERED", "Доставлен"
+    CANCELED = "CANCELED", "Отменен"
 
 
 class UserTypeChoices(models.TextChoices):
@@ -235,7 +235,7 @@ class Order(models.Model):
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', verbose_name='Пользователь')
     created_at = models.DateTimeField(auto_now_add=True, verbose_name='Дата создания заказа')
-    state = models.IntegerField(choices=OrderStateChoices.choices, default=OrderStateChoices.PREPARING,
+    state = models.CharField(choices=OrderStateChoices.choices, default=OrderStateChoices.PREPARING,
                                 verbose_name='Состояние заказа')
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, blank=True, null=True, related_name='orders',
                                 verbose_name='Контакт')
