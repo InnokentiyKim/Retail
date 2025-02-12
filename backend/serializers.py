@@ -1,3 +1,4 @@
+from decimal import Decimal
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty
 from backend.models import User, Shop, Category, Product, Coupon
 from rest_framework import serializers
@@ -133,7 +134,7 @@ class ShopProductSerializer(serializers.Serializer):
         return value
 
     def validate_price_retail(self, value):
-        if value < 0 or value > 100000000:
+        if value < 0.0 or value > 100000000.0:
             raise serializers.ValidationError("Розничная цена не может быть ниже 0 или превышать 10 000 000")
         return value
 

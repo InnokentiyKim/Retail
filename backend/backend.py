@@ -1,21 +1,15 @@
 import json
-import yaml
-import requests
 from django.contrib.auth.password_validation import validate_password
-from django.core.validators import URLValidator
 from django.db import IntegrityError
 from django.db.models import F, Q
 from django.http import JsonResponse
-from django.contrib.auth import authenticate
-from django.core.exceptions import ValidationError
 from rest_framework.request import Request
 from rest_framework.response import Response
-from .models import EmailTokenConfirm, Shop, Category, Product, ProductItem, Property, ProductProperty, Order, \
-    OrderStateChoices, OrderItem, Contact
+from .models import EmailTokenConfirm, Shop, ProductItem, Order, \
+    OrderStateChoices, OrderItem, Contact, Coupon
 from .serializers import UserSerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, ContactSerializer, \
     ProductItemSerializer
 from rest_framework import status as http_status
-from rest_framework.authtoken.models import Token
 
 
 class UserBackend:
@@ -54,16 +48,6 @@ class UserBackend:
                                     status=http_status.HTTP_400_BAD_REQUEST)
         return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
-    @staticmethod
-    def login_account(request):
-        if {'email', 'password'}.issubset(request.data):
-            user = authenticate(request, username=request.data['email'], password=request.data['password'])
-            if user and user.is_active:
-                token, _ = Token.objects.get_or_create(user=user)
-                return JsonResponse({'status': True, 'token': token.key}, status=http_status.HTTP_200_OK)
-            return JsonResponse({'status': False, 'error': 'Authentication failed'},
-                                status=http_status.HTTP_403_FORBIDDEN)
-        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def get_account_info(request):
@@ -89,41 +73,6 @@ class UserBackend:
 
 
 class SellerBackend:
-    @staticmethod
-    def update_goods(request):
-        url = request.data.get('url', None)
-        if url is None:
-            return JsonResponse({'status': False, 'error': 'url is required'}, status=http_status.HTTP_400_BAD_REQUEST)
-        validate_url = URLValidator(verify_exists=True)
-        try:
-            validate_url(url)
-        except ValidationError as error:
-            return JsonResponse({'status': False, 'error': str(error)}, status=http_status.HTTP_400_BAD_REQUEST)
-        stream = requests.get(url).content
-        data = yaml.safe_load(stream)
-        shop, _ = Shop.objects.get_or_create(name=data['shop'], user_id=request.user.id)
-        for category in data['categories']:
-            product_category, _ = Category.objects.get_or_create(id=category['id'], name=category['name'])
-            product_category.shops.add(shop)
-            product_category.save()
-        for item in data['goods']:
-            product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category'])
-            product_item = ProductItem.objects.create(
-                product_id=product.id,
-                shop_id=shop.id,
-                price=item['price'],
-                price_retail=item['price_retail'],
-                quantity=item['quantity']
-            )
-            for key, value in item['properties'].items():
-                property_instance, _ = Property.objects.get_or_create(name=key)
-                ProductProperty.objects.create(
-                    product_item_id=product_item.id,
-                    property_id=property_instance.id,
-                    value=value
-                )
-        return JsonResponse({'status': True}, status=http_status.HTTP_200_OK)
-
     @staticmethod
     def get_status(request):
         shop = request.user.shop
@@ -219,6 +168,48 @@ class BuyerBackend:
                 if has_deleting_items:
                     OrderItem.objects.filter(query).delete()
                     return JsonResponse({'Status': True}, status=http_status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'Status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
+    def get_order(request):
+        order = (Order.objects.filter(user_id=request.user.id).exclude(
+            state=OrderStateChoices.CREATED).prefetch_related(
+            'ordered_items__product_item__product__category',
+            'ordered_items__product_item__product_properties')
+                 .select_related('contact').annotate(F('total_price'))
+                 .distinct())
+        # total_sum = Sum(F('ordered_items__quantity') * F('order_items__product_item__price'))
+        serializer = OrderSerializer(order, many=True)
+        return Response(serializer.data)
+
+    @staticmethod
+    def confirm_order(request):
+        coupon = None
+        if {'id', 'contact'}.issubset(request.data):
+            if request.data['id'].isdigit():
+                coupon_code = request.data.get('coupon')
+                if coupon_code:
+                    coupon = Coupon.objects.filter(code__exact=coupon_code).first()
+                    if coupon is None:
+                        return JsonResponse({'error': 'Купон не существует'}, status=http_status.HTTP_400_BAD_REQUEST)
+                    if not coupon.is_valid():
+                        return JsonResponse({'error': 'Купон устарел или неактивен'},
+                                            status=http_status.HTTP_400_BAD_REQUEST)
+                try:
+                    if coupon:
+                        is_updated = Order.objects.filter(
+                            user_id=request.user.id, id=request.data['id']).update(
+                            contact_id=request.data['contact'],
+                            coupon_id=coupon.id,
+                            state=OrderStateChoices.CREATED)
+                    else:
+                        is_updated = Order.objects.filter(
+                            user_id=request.user.id, id=request.data['id']).update(
+                            contact_id=request.data['contact'],
+                            state=OrderStateChoices.CREATED)
+                except IntegrityError as err:
+                    return JsonResponse({'error': str(err)}, status=http_status.HTTP_400_BAD_REQUEST)
+                return True if is_updated else False
         return JsonResponse({'Status': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
 
