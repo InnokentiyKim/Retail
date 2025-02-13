@@ -62,12 +62,10 @@ class ShopView(ListAPIView):
     ordering_fields = ['id', 'name']
 
 
-class ProductItemView(ListAPIView):
+class ProductItemView(APIView):
     permission_classes = (AllowAny,)
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductItemFilter
-    search_fields = ['product__name', ]
-    ordering_fields = ['id', 'product__name', 'shop__name', 'price']
 
     def get(self, request, *args, **kwargs):
         ProductsBackend.get_products(self, request)
