@@ -238,7 +238,7 @@ class Order(models.Model):
                                 verbose_name='Состояние заказа')
     contact = models.ForeignKey(Contact, on_delete=models.CASCADE, blank=True, null=True, related_name='orders',
                                 verbose_name='Контакт')
-    coupon = models.ForeignKey(Coupon, on_delete=models.CASCADE, blank=True, null=True, verbose_name='Купон')
+    coupon = models.ForeignKey(Coupon, on_delete=models.SET_NULL, blank=True, null=True, verbose_name='Купон')
 
     def __str__(self):
         return f"{self.created_at} - {self.state}"

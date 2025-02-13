@@ -264,15 +264,9 @@ class ContactBackend:
 
 class ProductsBackend:
     @staticmethod
-    def get_products(request):
-        query = Q(shop__is_active=True)
-        shop_id = request.query_params.get('shop_id', None)
-        category_id = request.query_params.get('category_id', None)
-        if shop_id:
-            query &= Q(shop__id=shop_id)
-        if category_id:
-            query &= Q(product__category_id=category_id)
-        queryset = ProductItem.objects.filter(query).select_related(
-            'shop', 'product__category').distinct()
+    def get_products(self, request):
+        queryset = ProductItem.objects.filter(shop__is_active=True).select_related(
+            'shop', 'product__category', 'product_name').distinct()
+        queryset = self.filter_queryset(queryset)
         serializer = ProductItemSerializer(queryset, many=True)
         return Response(serializer.data)

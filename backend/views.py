@@ -4,12 +4,15 @@ from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend
+from .filters import ProductItemFilter
 from .models import Shop, Category
 from .permissions import IsSeller, IsBuyer
 from .serializers import CategorySerializer, ShopSerializer
 from .signals import new_order
 from .tasks import import_goods
 from rest_framework import status as http_status
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import SearchFilter, OrderingFilter
 
 
 class AccountRegisterView(APIView):
@@ -43,19 +46,31 @@ class CategoryView(ListAPIView):
     permission_classes = (AllowAny,)
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['id', 'name']
+    search_fields = ['name']
+    ordering_fields = ['id', 'name']
 
 
 class ShopView(ListAPIView):
     permission_classes = (AllowAny,)
     queryset = Shop.objects.filter(is_active=True)
     serializer_class = ShopSerializer
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_fields = ['id', 'name']
+    search_fields = ['name', 'description']
+    ordering_fields = ['id', 'name']
 
 
-class ProductItemView(APIView):
+class ProductItemView(ListAPIView):
     permission_classes = (AllowAny,)
+    filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
+    filterset_class = ProductItemFilter
+    search_fields = ['product__name', ]
+    ordering_fields = ['id', 'product__name', 'shop__name', 'price']
 
     def get(self, request, *args, **kwargs):
-        ProductsBackend.get_products(request)
+        ProductsBackend.get_products(self, request)
 
 
 class ShoppingCartView(APIView):
@@ -117,5 +132,5 @@ class OrderView(APIView):
         is_order_confirmed = BuyerBackend.confirm_order(request)
         if is_order_confirmed:
             new_order.send(sender=self.__class__, user_id=request.user.id)
-            return JsonResponse({'Status': True}, status=200)
-        return JsonResponse({'Status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'status': True}, status=200)
+        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
