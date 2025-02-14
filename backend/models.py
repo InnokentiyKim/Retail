@@ -1,3 +1,4 @@
+from datetime import timedelta
 from django.utils import timezone
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
@@ -57,7 +58,8 @@ class User(AbstractUser):
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
 
-    type = models.TextField(verbose_name='Тип пользователя', choices=UserTypeChoices.choices, max_length=2, default=UserTypeChoices.BUYER)
+    type = models.TextField(verbose_name='Тип пользователя', choices=UserTypeChoices.choices,
+                            max_length=2, default=UserTypeChoices.BUYER)
     email = models.EmailField(unique=True, db_index=True)
     is_active = models.BooleanField(default=False)
     username_validator = UnicodeUsernameValidator()
@@ -210,9 +212,12 @@ class Contact(models.Model):
 
 
 class Coupon(models.Model):
+    objects = models.manager.Manager()
+
     code = models.CharField(max_length=60, unique=True, verbose_name='Код купона')
-    valid_from = models.DateTimeField(verbose_name='Дата начала действия купона')
-    valid_to = models.DateTimeField(verbose_name='Дата окончания действия купона')
+    valid_from = models.DateTimeField(default=timezone.now, verbose_name='Дата начала действия купона')
+    valid_to = models.DateTimeField(default=lambda: timezone.now() + timedelta(days=30),
+                                    verbose_name='Дата окончания действия купона')
     discount = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)],
                                    verbose_name='Скидка', help_text='В процентах от 0 до 100')
     active = models.BooleanField(default=True, verbose_name='Активен')

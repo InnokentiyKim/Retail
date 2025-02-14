@@ -4,8 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
 
 from backend.views import AccountRegisterView, AccountConfirmView, AccountView, SellerGoodsView, \
     CategoryView, ShopView, ProductItemView, ShoppingCartView, SellerStatusView, SellerOrdersView, \
-    ContactView, OrderView
-
+    ContactView, OrderView, CouponView
 
 app_name = 'backend'
 urlpatterns = [
@@ -25,4 +24,5 @@ urlpatterns = [
     path('products', ProductItemView.as_view(), name='products'),
     path('shoppingcart', ShoppingCartView.as_view(), name='shoppingcart'),
     path('orders', OrderView.as_view(), name='orders'),
+    path('coupons', CouponView.as_view(), name='coupons'),
 ]

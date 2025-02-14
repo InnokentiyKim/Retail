@@ -1,4 +1,4 @@
-from decimal import Decimal
+from django.utils import timezone
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty
 from backend.models import User, Shop, Category, Product, Coupon
 from rest_framework import serializers
@@ -107,6 +107,17 @@ class CouponSerializer(serializers.ModelSerializer):
         model = Coupon
         fields = ['id', 'code', 'valid_from', 'valid_to', 'discount', 'active']
         read_only_fields = ['id']
+
+    def validate(self, attrs):
+        if attrs['valid_from'] > attrs['valid_to']:
+            raise serializers.ValidationError("Дата начала скидки не может быть позже даты окончания действия купона")
+        if attrs['valid_from'] < timezone.now():
+            raise serializers.ValidationError("Дата начала скидки не может быть раньше текущей даты")
+        if attrs['valid_to'] < timezone.now():
+            raise serializers.ValidationError("Дата окончания действия купона не может быть раньше текущей даты")
+        if attrs['discount'] < 0 or attrs['discount'] > 100:
+            raise serializers.ValidationError("Скидка не может быть ниже 0 или превышать 100")
+        return attrs
 
 
 

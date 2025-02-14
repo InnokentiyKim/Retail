@@ -9,14 +9,16 @@ from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from rest_framework import status as http_status
-
 from backend.models import Shop, Category, Product, ProductItem, Property, ProductProperty
 from backend.serializers import ShopGoodsImportSerializer
 
 
 @shared_task
-def send_email(subject: str, message: str, from_email: str, to_email: list[str]):
-    msg = EmailMultiAlternatives(subject, message, from_email, to_email)
+def send_email(subject: str, message: str, from_email: str, to_email: list[str], attachments: list[str]=None):
+    if attachments is None:
+        msg = EmailMultiAlternatives(subject, message, from_email, to_email)
+    else:
+        msg = EmailMultiAlternatives(subject, message, from_email, to_email, attachments=[attachments])
     msg.send()
 
 

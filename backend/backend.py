@@ -8,7 +8,7 @@ from rest_framework.response import Response
 from .models import EmailTokenConfirm, Shop, ProductItem, Order, \
     OrderStateChoices, OrderItem, Contact, Coupon
 from .serializers import UserSerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, ContactSerializer, \
-    ProductItemSerializer
+    ProductItemSerializer, CouponSerializer
 from rest_framework import status as http_status
 
 
@@ -26,11 +26,11 @@ class UserBackend:
                     user = user_serializer.save()
                     user.set_password(request.data['password'])
                     user.save()
-                    return JsonResponse({'status': True}, status=http_status.HTTP_201_CREATED)
+                    return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
                 else:
-                    return JsonResponse({'status': False, 'errors': user_serializer.errors},
+                    return JsonResponse({'success': False, 'errors': user_serializer.errors},
                                         status=http_status.HTTP_400_BAD_REQUEST)
-        return JsonResponse({'status': False, }, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': False, }, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def confirm_account(request):
@@ -42,11 +42,11 @@ class UserBackend:
                 token.user.is_active = True
                 token.user.save()
                 token.delete()
-                return JsonResponse({'status': True}, status=http_status.HTTP_200_OK)
+                return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
             else:
-                return JsonResponse({'status': False, 'error': 'Неверно указан email или токен'},
+                return JsonResponse({'success': False, 'error': 'Неверно указан email или токен'},
                                     status=http_status.HTTP_400_BAD_REQUEST)
-        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
 
     @staticmethod
@@ -66,9 +66,9 @@ class UserBackend:
         user_serializer = UserSerializer(request.user, data=request.data, partial=True)
         if user_serializer.is_valid():
             user_serializer.save()
-            return JsonResponse({'Status': True}, status=http_status.HTTP_200_OK)
+            return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
         else:
-            return JsonResponse({'Status': False, 'errors': user_serializer.errors},
+            return JsonResponse({'success': False, 'errors': user_serializer.errors},
                                 status=http_status.HTTP_400_BAD_REQUEST)
 
 
@@ -85,12 +85,12 @@ class SellerBackend:
         if seller_status is not None:
             try:
                 Shop.objects.filter(user_id=request.user.id).update(is_active=bool(seller_status))
-                return JsonResponse({'status': True}, status=http_status.HTTP_200_OK)
+                return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
             except IntegrityError as db_err:
-                return JsonResponse({'status': False,'error': str(db_err)}, status=http_status.HTTP_400_BAD_REQUEST)
+                return JsonResponse({'success': False,'error': str(db_err)}, status=http_status.HTTP_400_BAD_REQUEST)
             except ValueError as val_err:
-                return JsonResponse({'status': False, 'error': str(val_err)}, status=http_status.HTTP_400_BAD_REQUEST)
-        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+                return JsonResponse({'success': False, 'error': str(val_err)}, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def get_orders(request):
@@ -119,11 +119,11 @@ class BuyerBackend:
     def create_update_shopping_cart(request):
         updating_items = request.data.get('items')
         if updating_items is None:
-            return JsonResponse({'status': False, 'error': 'items is required'}, status=http_status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'success': False, 'error': 'items is required'}, status=http_status.HTTP_400_BAD_REQUEST)
         try:
             updating_items_dict = json.loads(updating_items)
         except ValueError:
-            return JsonResponse({'status': False, 'error': 'items format is invalid'}, status=http_status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'success': False, 'error': 'items format is invalid'}, status=http_status.HTTP_400_BAD_REQUEST)
         cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.PREPARING)
         for item in updating_items_dict:
             item.update({'order_id': cart.id})
@@ -132,10 +132,10 @@ class BuyerBackend:
                 try:
                     serializer.save()
                 except IntegrityError as err:
-                    return JsonResponse({'status': False, 'error': str(err)}, status=http_status.HTTP_400_BAD_REQUEST)
+                    return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_400_BAD_REQUEST)
             else:
-                return JsonResponse({'status': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        return JsonResponse({'status': True}, status=http_status.HTTP_200_OK)
+                return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
 
     @staticmethod
     def update_shopping_cart(request):
@@ -149,8 +149,8 @@ class BuyerBackend:
             for item in adding_items_dict:
                 if type(item['id']) is int and type(item['quantity']) is int:
                     OrderItem.objects.filter(order_id=cart.id, id=item['id']).update(quantity=item['quantity'])
-            return JsonResponse({'status': True}, status=http_status.HTTP_200_OK)
-        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def delete_shopping_cart_items(request):
@@ -167,8 +167,8 @@ class BuyerBackend:
                         has_deleting_items = True
                 if has_deleting_items:
                     OrderItem.objects.filter(query).delete()
-                    return JsonResponse({'Status': True}, status=http_status.HTTP_204_NO_CONTENT)
-        return JsonResponse({'Status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+                    return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def get_order(request):
@@ -210,7 +210,7 @@ class BuyerBackend:
                 except IntegrityError as err:
                     return JsonResponse({'error': str(err)}, status=http_status.HTTP_400_BAD_REQUEST)
                 return True if is_updated else False
-        return JsonResponse({'Status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
 
 class ContactBackend:
@@ -223,14 +223,12 @@ class ContactBackend:
     @staticmethod
     def create_contact(request):
         if {'city', 'street', 'house', 'apartment', 'phone'}.issubset(request.data):
-            contact_data = request.data.copy()
-            contact_data.update({'user': request.user.id})
-            serializer = ContactSerializer(data=contact_data)
+            serializer = ContactSerializer(data={**request.data, 'user': request.user.id})
             if serializer.is_valid():
                 serializer.save()
-                return JsonResponse({'status': True}, status=http_status.HTTP_201_CREATED)
+                return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
             return JsonResponse({'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def update_contact(request):
@@ -240,10 +238,10 @@ class ContactBackend:
                 serializer = ContactSerializer(contact, data=request.data, partial=True)
                 if serializer.is_valid():
                     serializer.save()
-                    return JsonResponse({'status': True}, status=http_status.HTTP_200_OK)
+                    return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
                 else:
                     return JsonResponse({'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def delete_contact(request):
@@ -258,8 +256,8 @@ class ContactBackend:
                     has_deleting_items = True
             if has_deleting_items:
                 Contact.objects.filter(query).delete()
-                return JsonResponse({'status': True}, status=http_status.HTTP_204_NO_CONTENT)
-        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+                return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
 
 class ProductsBackend:
@@ -270,3 +268,32 @@ class ProductsBackend:
         queryset = self.filter_queryset(queryset)
         serializer = ProductItemSerializer(queryset, many=True)
         return Response(serializer.data)
+
+
+class CouponBackend:
+    @staticmethod
+    def get_coupons(request):
+        coupons = Coupon.objects.all()
+        serializer = CouponSerializer(coupons, many=True)
+        return Response(serializer.data)
+
+    @staticmethod
+    def create_coupon(request):
+        serializer = CouponSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save()
+                return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
+            except IntegrityError as err:
+                return JsonResponse({'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
+        return JsonResponse({'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
+    def delete_coupon(request):
+        if 'id' in request.data and request.data['id'].isdigit():
+            try:
+                Coupon.objects.filter(id=request.data['id']).delete()
+                return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
+            except IntegrityError as err:
+                return JsonResponse({'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)

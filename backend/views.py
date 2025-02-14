@@ -1,9 +1,9 @@
 from django.http import JsonResponse
 from rest_framework.generics import ListAPIView
-from rest_framework.permissions import IsAuthenticated, AllowAny
+from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.request import Request
-from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend
+from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend, CouponBackend
 from .filters import ProductItemFilter
 from .models import Shop, Category
 from .permissions import IsSeller, IsBuyer
@@ -132,3 +132,16 @@ class OrderView(APIView):
             new_order.send(sender=self.__class__, user_id=request.user.id)
             return JsonResponse({'status': True}, status=200)
         return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+
+
+class CouponView(APIView):
+    permission_classes = (IsAuthenticated, IsAdminUser)
+
+    def get(self, request, *args, **kwargs):
+        CouponBackend.get_coupons(request)
+
+    def post(self, request, *args, **kwargs):
+        CouponBackend.create_coupon(request)
+
+    def delete(self, request, *args, **kwargs):
+        CouponBackend.delete_coupon(request)
