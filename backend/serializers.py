@@ -21,7 +21,7 @@ class UserSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = User
-        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'contacts']
+        fields = ['id', 'username', 'email', 'first_name', 'last_name', 'type', 'contacts']
         read_only_fields = ['id']
 
 
@@ -145,7 +145,7 @@ class ShopProductSerializer(serializers.Serializer):
         return value
 
     def validate_price_retail(self, value):
-        if value < 0.0 or value > 100000000.0:
+        if value < 0.0 or value > 100000000:
             raise serializers.ValidationError("Розничная цена не может быть ниже 0 или превышать 10 000 000")
         return value
 

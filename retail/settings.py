@@ -42,9 +42,8 @@ INSTALLED_APPS = [
     'backend.apps.BackendConfig',
     'rest_framework',
     'django_filters',
-    'rest_framework_simplejwt'
+    'rest_framework_simplejwt',
     'drf_spectacular',
-    'django_filters',
     'django_rest_passwordreset',
 ]
 
@@ -172,6 +171,7 @@ REST_FRAMEWORK = {
         'rest_framework.renderers.BrowsableAPIRenderer',
     ],
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
+    'TEST_REQUEST_DEFAULT_FORMAT': 'json',
 }
 
 

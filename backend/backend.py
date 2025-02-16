@@ -1,4 +1,5 @@
 import json
+from django.db import transaction
 from django.contrib.auth.password_validation import validate_password
 from django.db import IntegrityError
 from django.db.models import F, Q
@@ -23,14 +24,16 @@ class UserBackend:
             else:
                 user_serializer = UserSerializer(data=request.data)
                 if user_serializer.is_valid():
-                    user = user_serializer.save()
-                    user.set_password(request.data['password'])
-                    user.save()
-                    return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
+                    with transaction.atomic():
+                        user = user_serializer.save()
+                        user.set_password(request.data['password'])
+                        user.save()
+                        return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
                 else:
                     return JsonResponse({'success': False, 'errors': user_serializer.errors},
-                                        status=http_status.HTTP_400_BAD_REQUEST)
-        return JsonResponse({'success': False, }, status=http_status.HTTP_400_BAD_REQUEST)
+                                        status=http_status.HTTP_409_CONFLICT)
+        return JsonResponse({'success': False, 'error': 'Some required fields are missing'},
+                            status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def confirm_account(request):

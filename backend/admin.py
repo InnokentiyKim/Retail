@@ -57,7 +57,7 @@ class CategoryAdmin(admin.ModelAdmin):
 class ProductAdmin(admin.ModelAdmin):
     list_display = ('name', 'category')
     list_filter = ('category',)
-    search_fields = ('name', 'category')
+    search_fields = ('name', 'category__name')
     ordering = ('name', )
     inlines = [ProductItemInline]
 
@@ -66,7 +66,7 @@ class ProductAdmin(admin.ModelAdmin):
 class ProductItemAdmin(admin.ModelAdmin):
     list_display = ('product', 'shop', 'quantity', 'preview', 'price', 'price_retail')
     list_filter = ('product', 'shop')
-    search_fields = ('product', 'shop')
+    search_fields = ('product__name', 'shop__name')
     ordering_fields = ('product', 'quantity', 'price', 'price_retail')
 
 
@@ -94,4 +94,4 @@ class CouponAdmin(admin.ModelAdmin):
 class EmailTokenConfirmAdmin(admin.ModelAdmin):
     list_display = ('user', 'key', 'created_at')
     list_filter = ('user', 'created_at')
-    search_fields = ('user', )
+    search_fields = ('user__email', 'user__username')

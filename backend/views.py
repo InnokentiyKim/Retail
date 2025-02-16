@@ -1,3 +1,4 @@
+from django.contrib.auth.password_validation import validate_password
 from django.http import JsonResponse
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
@@ -7,7 +8,7 @@ from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, 
 from .filters import ProductItemFilter
 from .models import Shop, Category
 from .permissions import IsSeller, IsBuyer
-from .serializers import CategorySerializer, ShopSerializer
+from .serializers import CategorySerializer, ShopSerializer, UserSerializer
 from .signals import new_order
 from .tasks import import_goods
 from rest_framework import status as http_status
@@ -17,29 +18,29 @@ from rest_framework.filters import SearchFilter, OrderingFilter
 
 class AccountRegisterView(APIView):
     def post(self, request: Request):
-        UserBackend.register_account(request)
+        return UserBackend.register_account(request)
 
 
 class AccountConfirmView(APIView):
     def post(self, request):
-        UserBackend.confirm_account(request)
+        return UserBackend.confirm_account(request)
 
 
 class AccountView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request):
-        UserBackend.get_account_info(request)
+        return UserBackend.get_account_info(request)
 
     def post(self, request):
-        UserBackend.change_account_info(request)
+        return UserBackend.change_account_info(request)
 
 
 class SellerGoodsView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
     def post(self, request, *args, **kwargs):
-        import_goods.delay(request)
+        return import_goods.delay(request)
 
 
 class CategoryView(ListAPIView):
@@ -68,63 +69,63 @@ class ProductItemView(APIView):
     filterset_class = ProductItemFilter
 
     def get(self, request, *args, **kwargs):
-        ProductsBackend.get_products(self, request)
+        return ProductsBackend.get_products(self, request)
 
 
 class ShoppingCartView(APIView):
     permission_classes = (IsAuthenticated, IsBuyer)
 
     def get(self, request, *args, **kwargs):
-        BuyerBackend.get_shopping_cart(request)
+        return BuyerBackend.get_shopping_cart(request)
 
     def post(self, request, *args, **kwargs):
-        BuyerBackend.create_update_shopping_cart(request)
+        return BuyerBackend.create_update_shopping_cart(request)
 
     def put(self, request, *args, **kwargs):
-        BuyerBackend.update_shopping_cart(request)
+        return BuyerBackend.update_shopping_cart(request)
 
     def delete(self, request, *args, **kwargs):
-        BuyerBackend.delete_shopping_cart_items(request)
+        return BuyerBackend.delete_shopping_cart_items(request)
 
 
 class SellerStatusView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
     def get(self, request, *args, **kwargs):
-        SellerBackend.get_status(request)
+        return SellerBackend.get_status(request)
 
     def post(self, request, *args, **kwargs):
-        SellerBackend.change_status(request)
+        return SellerBackend.change_status(request)
 
 
 class SellerOrdersView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
     def get(self, request, *args, **kwargs):
-        SellerBackend.get_orders(request)
+        return SellerBackend.get_orders(request)
 
 
 class ContactView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
-        ContactBackend.get_contact(request)
+        return ContactBackend.get_contact(request)
 
     def post(self, request, *args, **kwargs):
-        ContactBackend.create_contact(request)
+        return ContactBackend.create_contact(request)
 
     def put(self, request, *args, **kwargs):
-        ContactBackend.update_contact(request)
+        return ContactBackend.update_contact(request)
 
     def delete(self, request, *args, **kwargs):
-        ContactBackend.delete_contact(request)
+        return ContactBackend.delete_contact(request)
 
 
 class OrderView(APIView):
     permission_classes = (IsAuthenticated, IsBuyer)
 
     def get(self, request, *args, **kwargs):
-        BuyerBackend.get_order(request)
+        return BuyerBackend.get_order(request)
 
     def post(self, request, *args, **kwargs):
         is_order_confirmed = BuyerBackend.confirm_order(request)
@@ -138,10 +139,10 @@ class CouponView(APIView):
     permission_classes = (IsAuthenticated, IsAdminUser)
 
     def get(self, request, *args, **kwargs):
-        CouponBackend.get_coupons(request)
+        return CouponBackend.get_coupons(request)
 
     def post(self, request, *args, **kwargs):
-        CouponBackend.create_coupon(request)
+        return CouponBackend.create_coupon(request)
 
     def delete(self, request, *args, **kwargs):
-        CouponBackend.delete_coupon(request)
+        return CouponBackend.delete_coupon(request)

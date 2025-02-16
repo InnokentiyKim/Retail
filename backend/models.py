@@ -65,6 +65,8 @@ class User(AbstractUser):
     username_validator = UnicodeUsernameValidator()
     username = models.CharField(
         max_length=80,
+        unique=True,
+        db_index=True,
         help_text='Required. 150 characters or fewer. Letters, digits and @/./+/-/_ only.',
         validators=[username_validator],
         error_messages={
@@ -210,13 +212,15 @@ class Contact(models.Model):
         verbose_name = 'Контакты пользователя'
         verbose_name_plural = 'Список контактов пользователей'
 
+def default_valid_to():
+    return timezone.now() + timedelta(days=30)
 
 class Coupon(models.Model):
     objects = models.manager.Manager()
 
     code = models.CharField(max_length=60, unique=True, verbose_name='Код купона')
     valid_from = models.DateTimeField(default=timezone.now, verbose_name='Дата начала действия купона')
-    valid_to = models.DateTimeField(default=lambda: timezone.now() + timedelta(days=30),
+    valid_to = models.DateTimeField(default=default_valid_to,
                                     verbose_name='Дата окончания действия купона')
     discount = models.IntegerField(validators=[MinValueValidator(0), MaxValueValidator(100)],
                                    verbose_name='Скидка', help_text='В процентах от 0 до 100')
