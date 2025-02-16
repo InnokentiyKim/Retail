@@ -20,14 +20,29 @@ def client():
 
 
 @pytest.fixture
-def user():
-    return User.objects.create_user('test', 'test')
-
+def user_factory():
+    def factory(*args, **kwargs):
+        model_args = {'is_staff': False, 'is_superuser': False, 'is_active': True}
+        if '_quantity' in kwargs and kwargs['_quantity'] == 1:
+            user = baker.make('backend.User', **model_args)
+            if 'password' in kwargs:
+                user.set_password(kwargs['password'])
+                user.save()
+            return user
+        return baker.make('backend.User', **model_args)
+    return factory
 
 @pytest.fixture
-def users_factory():
+def admin_user_factory():
     def factory(*args, **kwargs):
-        return baker.make('User', *args, **kwargs)
+        model_args = {'is_staff': True, 'is_superuser': True, 'is_active': True}
+        if '_quantity' in kwargs and kwargs['_quantity'] == 1:
+            admin_user = baker.make('backend.User', **model_args)
+            if 'password' in kwargs:
+                admin_user.set_password(kwargs['password'])
+                admin_user.save()
+            return admin_user
+        return baker.make('backend.User', **model_args)
     return factory
 
 
@@ -77,7 +92,7 @@ def test_create_user(client, email, username, password, first_name, last_name, e
 
 
 @pytest.mark.django_db
-def test_confirm_account(client, user):
+def test_confirm_account(client):
     create_user_url = reverse('backend:user-register')
     confirm_url = reverse('backend:user-register-confirm')
     user_payload = {
@@ -106,3 +121,32 @@ def test_confirm_account(client, user):
     response = client.post(confirm_url, data=payload)
     assert response.status_code == status.HTTP_400_BAD_REQUEST
 
+
+@pytest.mark.django_db
+def test_user_login(client, user_factory):
+    token_obtain_url = reverse('backend:token-obtain-pair')
+    token_refresh_url = reverse('backend:token-refresh')
+    password = 'secret1234'
+    user = user_factory(password=password, _quantity=1)
+    payload = {'email': user.email, 'password': password}
+    obtain_response = client.post(token_obtain_url, data=payload)
+    assert obtain_response.status_code == status.HTTP_200_OK
+    assert 'access' in obtain_response.data
+    assert 'refresh' in obtain_response.data
+
+    wrong_password = password + '1'
+    obtain_response_wrong = client.post(token_obtain_url, data={'email': user.email, 'password': wrong_password})
+    assert obtain_response_wrong.status_code == status.HTTP_401_UNAUTHORIZED
+
+    refresh_response = client.post(token_refresh_url, data={'refresh': obtain_response.data['refresh']})
+    assert refresh_response.status_code == status.HTTP_200_OK
+    assert 'access' in refresh_response.data
+    assert obtain_response.data['access'] != refresh_response.data['access']
+
+
+
+# @pytest.mark.django_db
+# def test_change_account_info(client, user):
+#     url = reverse('backend:user-account')
+#     user = users_factory(_quantity=1)[0]
+#     payload = {}

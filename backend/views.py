@@ -1,4 +1,3 @@
-from django.contrib.auth.password_validation import validate_password
 from django.http import JsonResponse
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
