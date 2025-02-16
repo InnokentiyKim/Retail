@@ -47,6 +47,15 @@ def admin_user_factory():
 
 
 @pytest.fixture
+def obtain_users_token(user_factory, password='secret1234'):
+    url = reverse('backend:token-obtain-pair')
+    user = user_factory(password=password, _quantity=1)
+    payload = {'email': user.email, 'password': password}
+    response = APIClient().post(url, data=payload)
+    return response
+
+
+@pytest.fixture
 def orders_factory():
     def factory(*args, **kwargs):
         return baker.make('Order', *args, **kwargs)
@@ -144,9 +153,25 @@ def test_user_login(client, user_factory):
     assert obtain_response.data['access'] != refresh_response.data['access']
 
 
+@pytest.mark.django_db
+def test_change_account_info(client, obtain_users_token):
+    url = reverse('backend:user-account')
+    token = obtain_users_token.data['access']
+    client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+    payload = {'email': 'user1@mail.ru', 'username': 'test123', 'first_name': 'test', 'last_name': 'test'}
+    response = client.post(url, payload)
+    assert response.status_code == status.HTTP_200_OK
+    user = User.objects.filter(email=payload['email']).first()
+    assert user is not None
+    for key, value in payload.items():
+        assert getattr(user, key) == value
 
-# @pytest.mark.django_db
-# def test_change_account_info(client, user):
-#     url = reverse('backend:user-account')
-#     user = users_factory(_quantity=1)[0]
-#     payload = {}
+
+@pytest.mark.django_db
+def test_get_account_info(client, obtain_users_token):
+    url = reverse('backend:user-account')
+    token = obtain_users_token.data['access']
+    client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+    response = client.get(url)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data is not None
