@@ -42,8 +42,9 @@ class SellerGoodsView(APIView):
         return import_goods.delay(request)
 
 
-class CategoryView(ListAPIView):
+class CategoriesView(ListAPIView):
     permission_classes = (AllowAny,)
+
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
@@ -52,14 +53,25 @@ class CategoryView(ListAPIView):
     ordering_fields = ['id', 'name']
 
 
-class ShopView(ListAPIView):
+class ShopsView(ListAPIView):
     permission_classes = (AllowAny,)
+
     queryset = Shop.objects.filter(is_active=True)
     serializer_class = ShopSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_fields = ['id', 'name']
     search_fields = ['name', 'description']
     ordering_fields = ['id', 'name']
+
+
+class SellerShopView(APIView):
+    permission_classes = (IsAuthenticated, IsSeller)
+
+    def get(self, request, *args, **kwargs):
+        return SellerBackend.get_shop(request)
+
+    def post(self, request, *args, **kwargs):
+        return SellerBackend.create_shop(request)
 
 
 class ProductItemView(APIView):

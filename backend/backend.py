@@ -16,6 +16,22 @@ from rest_framework import status as http_status
 class UserBackend:
     @staticmethod
     def register_account(request: Request):
+        """
+        Метод регистрирует нового пользователя в системе.
+        Она принимает объект запроса, содержащий данные для регистрации,
+        и возвращает объект ответа с результатом регистрации.
+
+        Параметры:
+            request (Request): Объект запроса, содержащий данные для регистрации:
+            email, username, first_name, last_name, password, type.
+        Возвращает:
+            Response: Объект ответа со HTTP статусом:
+                - 201 Created, если регистрация прошла успешно;
+                - 409 Conflict, если регистрация не удалась;
+                - 400 Bad Request, если данные запроса невалидны.
+        Исключения:
+            ValueError: Если данные запроса невалидны.
+        """
         if {'email', 'username', 'first_name', 'last_name', 'password'}.issubset(request.data):
             try:
                 validate_password(request.data['password'])
@@ -37,6 +53,18 @@ class UserBackend:
 
     @staticmethod
     def confirm_account(request):
+        """
+        Метод подтверждает регистрацию пользователя, используя email и токен,
+        полученные в объекте запроса. Если данные пользователя валидны, то
+        пользователь активируется
+
+        Параметры:
+            request (Request): Объект запроса, содержащий email и токен.
+        Возвращает:
+            Response: Объект ответа со статусом:
+                - 200 OK, если подтверждение прошло успешно;
+                - 400 Bad Request, если данные запроса невалидны;
+        """
         if {'email', 'token'}.issubset(request.data):
             token = EmailTokenConfirm.objects.filter(
                 user__email=request.data['email'],
@@ -77,6 +105,25 @@ class UserBackend:
 
 class SellerBackend:
     @staticmethod
+    def create_shop(request):
+        serializer = ShopSerializer(data=request.data)
+        if serializer.is_valid():
+            try:
+                serializer.save(user_id=request.user.id)
+                return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
+            except IntegrityError as err:
+                return JsonResponse({'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
+        return JsonResponse({'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
+    def get_shop(request):
+        shop = Shop.objects.filter(user_id=request.user.id).first()
+        if not shop:
+            return JsonResponse({'success': False, 'error': 'No shops found'}, status=http_status.HTTP_400_BAD_REQUEST)
+        serializer = ShopSerializer(shop)
+        return Response(serializer.data)
+
+    @staticmethod
     def get_status(request):
         shop = request.user.shop
         serializer = ShopSerializer(shop)
@@ -113,8 +160,7 @@ class BuyerBackend:
     def get_shopping_cart(request):
         cart = Order.objects.filter(
             user_id=request.user.id).prefetch_related(
-            'ordered_items__product__category').annotate(
-            total_price=F('total_price')).distinct()
+            'ordered_items__product__category').distinct()
         serializer = OrderSerializer(cart, many=True)
         return Response(serializer.data)
 
@@ -135,7 +181,7 @@ class BuyerBackend:
                 try:
                     serializer.save()
                 except IntegrityError as err:
-                    return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_400_BAD_REQUEST)
+                    return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
             else:
                 return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
         return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)

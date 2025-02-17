@@ -1,5 +1,10 @@
 *.json
 tests/
+venv/
+env/
 pytest.ini
 *.http
 *.md
+*.ipynb
+*.ipynb_checkpoints
+*__pycache__

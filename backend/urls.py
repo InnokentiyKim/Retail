@@ -3,8 +3,8 @@ from django_rest_passwordreset.views import reset_password_request_token, reset_
 from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
 
 from backend.views import AccountRegisterView, AccountConfirmView, AccountView, SellerGoodsView, \
-    CategoryView, ShopView, ProductItemView, ShoppingCartView, SellerStatusView, SellerOrdersView, \
-    ContactView, OrderView, CouponView
+    CategoriesView, ShopsView, ProductItemView, ShoppingCartView, SellerStatusView, SellerOrdersView, \
+    ContactView, OrderView, CouponView, SellerShopView
 
 app_name = 'backend'
 urlpatterns = [
@@ -19,8 +19,9 @@ urlpatterns = [
     path('seller/goods', SellerGoodsView.as_view(), name='seller-goods'),
     path('seller/status', SellerStatusView.as_view(), name='seller-status'),
     path('seller/orders', SellerOrdersView.as_view(), name='seller-orders'),
-    path('categories', CategoryView.as_view(), name='categories'),
-    path('shops', ShopView.as_view(), name='shops'),
+    path('seller/shops', SellerShopView.as_view(), name='seller-shop'),
+    path('categories', CategoriesView.as_view(), name='categories'),
+    path('shops', ShopsView.as_view(), name='shops'),
     path('products', ProductItemView.as_view(), name='products'),
     path('shoppingcart', ShoppingCartView.as_view(), name='shoppingcart'),
     path('orders', OrderView.as_view(), name='orders'),
