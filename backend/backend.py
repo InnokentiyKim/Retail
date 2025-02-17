@@ -11,6 +11,9 @@ from .models import EmailTokenConfirm, Shop, ProductItem, Order, \
 from .serializers import UserSerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, ContactSerializer, \
     ProductItemSerializer, CouponSerializer
 from rest_framework import status as http_status
+from django.core.validators import URLValidator
+from django.core.exceptions import ValidationError
+from .tasks import import_goods
 
 
 class UserBackend:
@@ -105,6 +108,21 @@ class UserBackend:
 
 class SellerBackend:
     @staticmethod
+    def import_seller_goods(request, *args, **kwargs):
+        url = request.data.get('url')
+        user_id = request.user.id
+        if url is None:
+            return JsonResponse({'error': 'url is required'}, status=http_status.HTTP_400_BAD_REQUEST)
+        validate_url = URLValidator()
+        try:
+            validate_url(url)
+        except ValidationError as error:
+            return JsonResponse({'success': False, 'error': str(error)}, status=http_status.HTTP_400_BAD_REQUEST)
+        import_goods.delay(url, user_id)
+        return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
+
+
+    @staticmethod
     def create_shop(request):
         serializer = ShopSerializer(data=request.data)
         if serializer.is_valid():
@@ -112,20 +130,14 @@ class SellerBackend:
                 serializer.save(user_id=request.user.id)
                 return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
             except IntegrityError as err:
-                return JsonResponse({'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
+                return JsonResponse({'error': 'Your shop already exist'}, status=http_status.HTTP_409_CONFLICT)
         return JsonResponse({'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
-    def get_shop(request):
-        shop = Shop.objects.filter(user_id=request.user.id).first()
-        if not shop:
-            return JsonResponse({'success': False, 'error': 'No shops found'}, status=http_status.HTTP_400_BAD_REQUEST)
-        serializer = ShopSerializer(shop)
-        return Response(serializer.data)
-
-    @staticmethod
     def get_status(request):
-        shop = request.user.shop
+        shop = Shop.objects.filter(user_id=request.user.id).first()
+        if shop is None:
+            JsonResponse({'success': False, 'error': 'No shops found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = ShopSerializer(shop)
         return Response(serializer.data)
 
@@ -149,8 +161,7 @@ class SellerBackend:
             state=OrderStateChoices.PREPARING).prefetch_related(
             'ordered_items__product_item__product__category',
             'ordered_items__product_item__product_properties').select_related(
-            'contact').annotate(F('total_price')).distinct()
-        # total_price=Sum(F('ordered_items__quantity') * F('ordered_items__product_item__price'))
+            'contact').distinct()
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 

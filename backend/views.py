@@ -9,7 +9,6 @@ from .models import Shop, Category
 from .permissions import IsSeller, IsBuyer
 from .serializers import CategorySerializer, ShopSerializer, UserSerializer
 from .signals import new_order
-from .tasks import import_goods
 from rest_framework import status as http_status
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
@@ -39,7 +38,7 @@ class SellerGoodsView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
 
     def post(self, request, *args, **kwargs):
-        return import_goods.delay(request)
+        return SellerBackend.import_seller_goods(request, args, kwargs)
 
 
 class CategoriesView(ListAPIView):
@@ -66,9 +65,6 @@ class ShopsView(ListAPIView):
 
 class SellerShopView(APIView):
     permission_classes = (IsAuthenticated, IsSeller)
-
-    def get(self, request, *args, **kwargs):
-        return SellerBackend.get_shop(request)
 
     def post(self, request, *args, **kwargs):
         return SellerBackend.create_shop(request)

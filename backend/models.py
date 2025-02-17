@@ -1,4 +1,6 @@
 from datetime import timedelta
+from decimal import Decimal
+
 from django.utils import timezone
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
@@ -260,7 +262,7 @@ class Order(models.Model):
     @property
     def total_price(self):
         if self.coupon and self.coupon.is_valid():
-            return (1 - self.coupon.discount / 100) * sum(item.get_cost() for item in self.ordered_items.all())
+            return Decimal(1 - self.coupon.discount / 100) * sum(item.get_cost() for item in self.ordered_items.all())
         return sum(item.get_cost() for item in self.ordered_items.all())
 
 
@@ -280,7 +282,7 @@ class OrderItem(models.Model):
         ]
 
     def get_cost(self):
-        return self.quantity * self.product_item.price
+        return Decimal(self.quantity) * self.product_item.price
 
     def __str__(self):
         return f"{self.product_item.product.name}"

@@ -1,4 +1,7 @@
 import csv
+import json
+import os.path
+from django.db import IntegrityError
 import yaml
 import datetime
 import requests
@@ -23,44 +26,47 @@ def send_email(subject: str, message: str, from_email: str, to_email: list[str],
 
 
 @shared_task
-def import_goods(request, *args, **kwargs):
-    url = request.data.get('url', None)
-    if url is None:
-        return JsonResponse({'error': 'url is required'}, status=http_status.HTTP_400_BAD_REQUEST)
-    validate_url = URLValidator()
-    try:
-        validate_url(url)
-    except ValidationError as error:
-        return JsonResponse({'status': False, 'error': str(error)}, status=http_status.HTTP_400_BAD_REQUEST)
-    stream = requests.get(url).content
+def import_goods(url: str, user_id: int):
+    # stream = requests.get(url).content
+    path = os.path.join(os.path.dirname(__file__), 'shops_data.yaml')
+    with open(path, 'rb') as file:
+        stream = file.read()
     data = yaml.safe_load(stream)
     serializer = ShopGoodsImportSerializer(data=data)
     if serializer.is_valid():
         valid_data = serializer.validated_data
     else:
-        return JsonResponse({'status': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-    shop, _ = Shop.objects.get_or_create(name=valid_data['shop'], user_id=request.user.id)
+        return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+    shop = Shop.objects.filter(user_id=user_id).first()
+    if shop is None:
+        return JsonResponse({'success': False}, status=http_status.HTTP_404_NOT_FOUND)
     for category in valid_data['categories']:
-        product_category, _ = Category.objects.get_or_create(id=category['id'], name=category['name'])
-        product_category.shops.add(shop)
-        product_category.save()
+        try:
+            product_category, _ = Category.objects.get_or_create(id=category['id'])
+            product_category.shops.add(shop)
+            product_category.save()
+        except IntegrityError as err:
+            return JsonResponse({'success': False, 'error': err}, status=http_status.HTTP_409_CONFLICT)
     for item in valid_data['goods']:
-        product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category'])
-        product_item = ProductItem.objects.create(
-            product_id=product.id,
-            shop_id=shop.id,
-            price=item['price'],
-            price_retail=item['price_retail'],
-            quantity=item['quantity']
-        )
-        for key, value in item['properties'].items():
-            property_instance, _ = Property.objects.get_or_create(name=key)
-            ProductProperty.objects.create(
-                product_item_id=product_item.id,
-                property_id=property_instance.id,
-                value=value
+        try:
+            product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category'])
+            product_item = ProductItem.objects.create(
+                product_id=product.id,
+                shop_id=shop.id,
+                price=item['price'],
+                price_retail=item['price_retail'],
+                quantity=item['quantity']
             )
-    return JsonResponse({'status': True}, status=http_status.HTTP_200_OK)
+            for key, value in item['properties'].items():
+                property_instance, _ = Property.objects.get_or_create(name=key)
+                ProductProperty.objects.create(
+                    product_item_id=product_item.id,
+                    property_id=property_instance.id,
+                    value=value
+                )
+        except IntegrityError as err:
+            return JsonResponse({'success': False, 'error': err}, status=http_status.HTTP_409_CONFLICT)
+    return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
 
 
 @shared_task
