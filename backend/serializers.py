@@ -1,3 +1,4 @@
+from django.core.validators import MinValueValidator
 from django.utils import timezone
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty
 from backend.models import User, Shop, Category, Product, Coupon
@@ -85,6 +86,21 @@ class OrderItemSerializer(serializers.ModelSerializer):
         extra_kwargs = {
             'order': {'write_only': True},
         }
+
+
+class OrderItemUpdateSerializer(serializers.Serializer):
+    id = serializers.IntegerField(min_value=0, allow_null=False)
+    quantity = serializers.IntegerField(min_value=1, max_value=10000, allow_null=False)
+
+
+class OrderItemCreateUpdateSerializer(serializers.Serializer):
+    id = serializers.IntegerField(min_value=0, allow_null=False)
+    quantity = serializers.IntegerField(min_value=1, max_value=10000, allow_null=False)
+    product_item = serializers.IntegerField(min_value=0, allow_null=False)
+
+
+class OrderItemDeleteSerializer(serializers.Serializer):
+    id = serializers.IntegerField(min_value=0, allow_null=False)
 
 
 class OrderItemCreateSerializer(OrderItemSerializer):

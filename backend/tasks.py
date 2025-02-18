@@ -1,15 +1,11 @@
 import csv
-import json
 import os.path
 from django.db import IntegrityError
 import yaml
 import datetime
-import requests
 from celery import shared_task
 from django.core.mail import EmailMultiAlternatives
 from django.http import HttpResponse
-from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError
 from django.http import JsonResponse
 from rest_framework import status as http_status
 from backend.models import Shop, Category, Product, ProductItem, Property, ProductProperty
@@ -70,8 +66,7 @@ def import_goods(url: str, user_id: int):
 
 
 @shared_task
-def export_to_csv(modeladmin, request, queryset):
-    options = modeladmin.model._meta
+def export_to_csv(options, queryset):
     content_disposition = f"attachment; filename={options.verbose_name}.csv"
     response = HttpResponse(content_type="text/csv")
     response['Content-Disposition'] = content_disposition

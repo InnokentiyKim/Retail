@@ -135,11 +135,11 @@ class OrderView(APIView):
         return BuyerBackend.get_order(request)
 
     def post(self, request, *args, **kwargs):
-        is_order_confirmed = BuyerBackend.confirm_order(request)
-        if is_order_confirmed:
+        order_confirmed = BuyerBackend.confirm_order(request)
+        if order_confirmed is True:
             new_order.send(sender=self.__class__, user_id=request.user.id)
-            return JsonResponse({'status': True}, status=200)
-        return JsonResponse({'status': False}, status=http_status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
+        return order_confirmed
 
 
 class CouponView(APIView):

@@ -4,7 +4,11 @@ from .tasks import export_to_csv
 from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm, Coupon
 
 
-export_to_csv.short_description = "Export to CSV"
+def admin_export_to_csv(modeladmin, request, queryset):
+    options = modeladmin.model._meta
+    export_to_csv.delay(options, queryset)
+
+admin_export_to_csv.short_description = "Export to CSV"
 
 
 class ContactInline(admin.TabularInline):
@@ -79,7 +83,7 @@ class OrderAdmin(admin.ModelAdmin):
     list_display = ('user', 'created_at', 'state', 'contact')
     date_hierarchy = 'created_at'
     inlines = [OrderItemInline]
-    actions = [export_to_csv]
+    actions = [admin_export_to_csv]
 
 
 @admin.register(Coupon)
