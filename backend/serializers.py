@@ -1,4 +1,3 @@
-from django.core.validators import MinValueValidator
 from django.utils import timezone
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty
 from backend.models import User, Shop, Category, Product, Coupon
@@ -12,9 +11,13 @@ class ContactSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
         extra_kwargs = {
             'user': {'write_only': True},
+            'country': {'required': False},
             'structure': {'required': False},
             'building': {'required': False},
         }
+
+class ContactDeleteSerializer(serializers.Serializer):
+    id = serializers.IntegerField(min_value=0, allow_null=False)
 
 
 class UserSerializer(serializers.ModelSerializer):

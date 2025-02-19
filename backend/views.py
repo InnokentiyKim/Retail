@@ -151,5 +151,8 @@ class CouponView(APIView):
     def post(self, request, *args, **kwargs):
         return CouponBackend.create_coupon(request)
 
+    def put(self, request, *args, **kwargs):
+        return CouponBackend.update_coupon(request)
+
     def delete(self, request, *args, **kwargs):
         return CouponBackend.delete_coupon(request)

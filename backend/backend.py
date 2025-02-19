@@ -9,10 +9,10 @@ from .models import EmailTokenConfirm, Shop, ProductItem, Order, \
     OrderStateChoices, OrderItem, Contact, Coupon
 from .serializers import UserSerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, ContactSerializer, \
     ProductItemSerializer, CouponSerializer, OrderItemUpdateSerializer, OrderItemCreateUpdateSerializer, \
-    OrderItemDeleteSerializer
+    OrderItemDeleteSerializer, ContactDeleteSerializer
 from rest_framework import status as http_status
 from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError
+from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from .tasks import import_goods
 
 
@@ -278,13 +278,11 @@ class ContactBackend:
 
     @staticmethod
     def create_contact(request):
-        if {'city', 'street', 'house', 'apartment', 'phone'}.issubset(request.data):
-            serializer = ContactSerializer(data={**request.data, 'user': request.user.id})
-            if serializer.is_valid():
-                serializer.save()
-                return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
-            return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
+        serializer = ContactSerializer(data={**request.data, 'user': request.user.id})
+        if serializer.is_valid():
+            serializer.save()
+            return JsonResponse({'success': True}, status=http_status.HTTP_201_CREATED)
+        return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
     def update_contact(request):
@@ -302,19 +300,21 @@ class ContactBackend:
 
     @staticmethod
     def delete_contact(request):
-        deleting_contacts = request.data.get('items')
-        if deleting_contacts:
-            deleting_contacts_list = deleting_contacts.split(',')
+        serializer = ContactDeleteSerializer(request.data.get('items'))
+        if serializer.is_valid():
+            deleting_items_dict = serializer.validated_data
+        else:
+            return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+        if deleting_items_dict:
             query = Q()
-            has_deleting_items = False
-            for contact_id in deleting_contacts_list:
-                if contact_id.isdigit():
-                    query |= Q(user_id=request.user.id, id=contact_id)
-                    has_deleting_items = True
-            if has_deleting_items:
+            for item in deleting_items_dict:
+                query |= Q(user_id=request.user.id, id=item['id'])
+            try:
                 Contact.objects.filter(query).delete()
                 return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
-        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
+            except IntegrityError as err:
+                return JsonResponse({'success': False}, status=http_status.HTTP_409_CONFLICT)
+        return JsonResponse({'success': False, 'error': 'No deleting items found'}, status=http_status.HTTP_400_BAD_REQUEST)
 
 
 class ProductsBackend:
@@ -346,11 +346,27 @@ class CouponBackend:
         return JsonResponse({'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
+    def update_coupon(request):
+        if 'id' in request.data and request.data['id'].isdigit():
+            coupon = Coupon.objects.filter(id=request.data['id']).first()
+            if coupon is None:
+                return JsonResponse({'success': False}, status=http_status.HTTP_404_NOT_FOUND)
+            serializer = CouponSerializer(coupon, data=request.data, partial=True)
+            if serializer.is_valid():
+                serializer.save()
+                return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
+            else:
+                return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
+
+    @staticmethod
     def delete_coupon(request):
         if 'id' in request.data and request.data['id'].isdigit():
             try:
                 Coupon.objects.filter(id=request.data['id']).delete()
                 return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
+            except ObjectDoesNotExist as err:
+                return JsonResponse({'error': str(err)}, status=http_status.HTTP_404_NOT_FOUND)
             except IntegrityError as err:
                 return JsonResponse({'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
         return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
