@@ -1,4 +1,3 @@
-from django.http import JsonResponse
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
@@ -7,9 +6,7 @@ from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, 
 from .filters import ProductItemFilter
 from .models import Shop, Category
 from .permissions import IsSeller, IsBuyer
-from .serializers import CategorySerializer, ShopSerializer, UserSerializer
-from .signals import new_order
-from rest_framework import status as http_status
+from .serializers import CategorySerializer, ShopSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 
@@ -135,11 +132,7 @@ class OrderView(APIView):
         return BuyerBackend.get_order(request)
 
     def post(self, request, *args, **kwargs):
-        order_confirmed = BuyerBackend.confirm_order(request)
-        if order_confirmed is True:
-            new_order.send(sender=self.__class__, user_id=request.user.id)
-            return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
-        return order_confirmed
+        return BuyerBackend.confirm_order(request, sender=self.__class__)
 
 
 class CouponView(APIView):

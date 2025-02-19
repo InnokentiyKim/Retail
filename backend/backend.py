@@ -7,12 +7,15 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from .models import EmailTokenConfirm, Shop, ProductItem, Order, \
     OrderStateChoices, OrderItem, Contact, Coupon
+from .order import create_order_report
 from .serializers import UserSerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, ContactSerializer, \
     ProductItemSerializer, CouponSerializer, OrderItemUpdateSerializer, OrderItemCreateUpdateSerializer, \
     OrderItemDeleteSerializer, ContactDeleteSerializer
 from rest_framework import status as http_status
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
+
+from .signals import new_order
 from .tasks import import_goods
 
 
@@ -160,7 +163,7 @@ class SellerBackend:
             ordered_items__product_item__shop__user_id=request.user.id).exclude(
             state=OrderStateChoices.PREPARING).prefetch_related(
             'ordered_items__product_item__product__category',
-            'ordered_items__product_item__product_properties').select_related(
+            'ordered_items__product_item__product_properties__property').select_related(
             'contact').distinct()
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
@@ -232,8 +235,8 @@ class BuyerBackend:
 
     @staticmethod
     def get_order(request):
-        order = (Order.objects.filter(user_id=request.user.id).exclude(
-            state=OrderStateChoices.CREATED).prefetch_related(
+        order = (Order.objects.filter(user_id=request.user.id,
+            state=OrderStateChoices.PREPARING).prefetch_related(
             'ordered_items__product_item__product__category',
             'ordered_items__product_item__product_properties'
         ).select_related('contact').distinct())
@@ -241,7 +244,7 @@ class BuyerBackend:
         return Response(serializer.data)
 
     @staticmethod
-    def confirm_order(request):
+    def confirm_order(request, sender):
         coupon = None
         if not {'id', 'contact'}.issubset(request.data) or not request.data['id'].isdigit():
             return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
@@ -266,7 +269,9 @@ class BuyerBackend:
             order.save()
         except IntegrityError as err:
             return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
-        return True
+        report_filename = create_order_report(order)
+        new_order.send(sender=sender, user_id=request.user.id, order_state=order.state, report=report_filename)
+        return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
 
 
 class ContactBackend:
@@ -369,4 +374,30 @@ class CouponBackend:
                 return JsonResponse({'error': str(err)}, status=http_status.HTTP_404_NOT_FOUND)
             except IntegrityError as err:
                 return JsonResponse({'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
+        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
+
+
+class ManagerBackend:
+    @staticmethod
+    def get_orders(request):
+        order = (Order.objects.all().exclude(
+            state=OrderStateChoices.PREPARING).prefetch_related(
+            'ordered_items__product_item__product__category',
+            'ordered_items__product_item__product_properties'
+        ).select_related('contact').distinct())
+        serializer = OrderSerializer(order, many=True)
+        return Response(serializer.data)
+
+    @staticmethod
+    def change_orders_state(request):
+        if 'id' in request.data and request.data['id'].isdigit():
+            order = Order.objects.filter(id=request.data['id']).first()
+            if order is None:
+                return JsonResponse({'success': False}, status=http_status.HTTP_404_NOT_FOUND)
+            order.state = request.data['state']
+            try:
+                order.save()
+                return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
+            except IntegrityError as err:
+                return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
         return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)

@@ -3,7 +3,7 @@ from django.conf import settings
 from django.db.models.signals import post_save
 from django.dispatch import receiver, Signal
 from django_rest_passwordreset.signals import reset_password_token_created
-from backend.models import User, EmailTokenConfirm
+from backend.models import User, EmailTokenConfirm, OrderStateChoices
 from .tasks import send_email
 
 FROM_EMAIL = settings.EMAIL_HOST_USER
@@ -31,10 +31,23 @@ def new_user_registered_signal(sender: Type[User], instance: User, created: bool
 
 
 @receiver(new_order)
-def new_order_signal(user_id, **kwargs):
+def new_order_signal(user_id, order_state, report=None, **kwargs):
     user = User.objects.get(pk=user_id)
     if user is not None:
         subject = "Обновление статуса заказа"
-        body = "Заказ сформирован"
         to_email = [user.email]
-        send_email.delay(subject, body, FROM_EMAIL, to_email)
+        body = "Ваш заказ"
+        if order_state == OrderStateChoices.CREATED:
+            body = "Ваш заказ сформирован"
+        if order_state == OrderStateChoices.CONFIRMED:
+            body = "Ваш заказ подтвержден. Спасибо за покупку!"
+        if order_state == OrderStateChoices.ASSEMBLED:
+            body = "Ваш заказ собран"
+        if order_state == OrderStateChoices.DELIVERED:
+            body = "Ваш заказ доставлен"
+        if order_state == OrderStateChoices.CANCELED:
+            body = "Ваш заказ отменен"
+        if report is not None:
+            send_email.delay(subject, body, FROM_EMAIL, to_email, attachments=report)
+        else:
+            send_email.delay(subject, body, FROM_EMAIL, to_email)

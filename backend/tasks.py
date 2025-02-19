@@ -1,5 +1,6 @@
 import csv
 import os.path
+from typing import Any
 from django.db import IntegrityError
 import yaml
 import datetime
@@ -13,11 +14,11 @@ from backend.serializers import ShopGoodsImportSerializer
 
 
 @shared_task
-def send_email(subject: str, message: str, from_email: str, to_email: list[str], attachments: list[str]=None):
-    if attachments is None:
-        msg = EmailMultiAlternatives(subject, message, from_email, to_email)
+def send_email(subject: str, message: str, from_email: str, to_email: list[str], attachment: str|Any=None):
+    if attachment is None:
+        msg = EmailMultiAlternatives(subject=subject, body=message, from_email=from_email, to=to_email)
     else:
-        msg = EmailMultiAlternatives(subject, message, from_email, to_email, attachments=[attachments])
+        msg = EmailMultiAlternatives(subject=subject, body=message, from_email=from_email, to=to_email, attachments=attachment)
     msg.send()
 
 
