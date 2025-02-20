@@ -1,4 +1,5 @@
 from django.db import transaction
+from django.core.cache import cache
 from django.contrib.auth.password_validation import validate_password
 from django.db import IntegrityError
 from django.db.models import Q
@@ -10,11 +11,10 @@ from .models import EmailTokenConfirm, Shop, ProductItem, Order, \
 from .order import create_order_report
 from .serializers import UserSerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, ContactSerializer, \
     ProductItemSerializer, CouponSerializer, OrderItemUpdateSerializer, OrderItemCreateUpdateSerializer, \
-    OrderItemDeleteSerializer, ContactDeleteSerializer
+    OrderItemDeleteSerializer, ContactDeleteSerializer, OrderStateSerializer
 from rest_framework import status as http_status
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
-
 from .signals import new_order
 from .tasks import import_goods
 
@@ -172,9 +172,12 @@ class SellerBackend:
 class BuyerBackend:
     @staticmethod
     def get_shopping_cart(request):
-        cart = Order.objects.filter(
-            user_id=request.user.id, state=OrderStateChoices.PREPARING).prefetch_related(
-            'ordered_items__product__category').distinct()
+        cart = cache.get('cart')
+        if not cart:
+            cart = Order.objects.filter(
+                user_id=request.user.id, state=OrderStateChoices.PREPARING).prefetch_related(
+                'ordered_items__product__category').distinct()
+            cache.set('cart', cart, 20)
         serializer = OrderSerializer(cart, many=True)
         return Response(serializer.data)
 
@@ -276,9 +279,12 @@ class BuyerBackend:
 
 class ContactBackend:
     @staticmethod
-    def get_contact(request):
-        contact = Contact.objects.filter(user_id=request.user.id)
-        serializer = ContactSerializer(contact, many=True)
+    def get_contacts(request):
+        contacts = cache.get('contacts')
+        if not contacts:
+            contacts = Contact.objects.filter(user_id=request.user.id)
+            cache.set('contacts', contacts, 20)
+        serializer = ContactSerializer(contacts, many=True)
         return Response(serializer.data)
 
     @staticmethod
@@ -325,17 +331,23 @@ class ContactBackend:
 class ProductsBackend:
     @staticmethod
     def get_products(self, request):
-        queryset = ProductItem.objects.filter(shop__is_active=True).select_related(
-            'shop', 'product__category', 'product_name').distinct()
-        queryset = self.filter_queryset(queryset)
-        serializer = ProductItemSerializer(queryset, many=True)
+        products = cache.get('products')
+        if not products:
+            products = ProductItem.objects.filter(shop__is_active=True).select_related(
+                'shop', 'product__category', 'product_name').distinct()
+            products = self.filter_queryset(products)
+            cache.set('products', products, 20)
+        serializer = ProductItemSerializer(products, many=True)
         return Response(serializer.data)
 
 
 class CouponBackend:
     @staticmethod
     def get_coupons(request):
-        coupons = Coupon.objects.all()
+        coupons = cache.get('coupons')
+        if not coupons:
+            coupons = Coupon.objects.all()
+            cache.set('coupons', coupons, 30)
         serializer = CouponSerializer(coupons, many=True)
         return Response(serializer.data)
 
@@ -380,17 +392,21 @@ class CouponBackend:
 class ManagerBackend:
     @staticmethod
     def get_orders(request):
-        order = (Order.objects.all().exclude(
-            state=OrderStateChoices.PREPARING).prefetch_related(
-            'ordered_items__product_item__product__category',
-            'ordered_items__product_item__product_properties'
-        ).select_related('contact').distinct())
-        serializer = OrderSerializer(order, many=True)
+        orders = cache.get('orders')
+        if not orders:
+            orders = (Order.objects.all().exclude(
+                state=OrderStateChoices.PREPARING).prefetch_related(
+                'ordered_items__product_item__product__category',
+                'ordered_items__product_item__product_properties'
+            ).select_related('contact').distinct())
+            cache.set('orders', orders, 20)
+        serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
     @staticmethod
     def change_orders_state(request):
-        if 'id' in request.data and request.data['id'].isdigit():
+        serializer = OrderStateSerializer(data=request.data)
+        if serializer.is_valid():
             order = Order.objects.filter(id=request.data['id']).first()
             if order is None:
                 return JsonResponse({'success': False}, status=http_status.HTTP_404_NOT_FOUND)

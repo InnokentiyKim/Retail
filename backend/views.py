@@ -113,7 +113,7 @@ class ContactView(APIView):
     permission_classes = (IsAuthenticated,)
 
     def get(self, request, *args, **kwargs):
-        return ContactBackend.get_contact(request)
+        return ContactBackend.get_contacts(request)
 
     def post(self, request, *args, **kwargs):
         return ContactBackend.create_contact(request)

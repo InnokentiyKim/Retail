@@ -1,5 +1,5 @@
 from django.utils import timezone
-from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty
+from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty, OrderStateChoices
 from backend.models import User, Shop, Category, Product, Coupon
 from rest_framework import serializers
 
@@ -119,6 +119,11 @@ class OrderSerializer(serializers.ModelSerializer):
         model = Order
         fields = ['id', 'ordered_items', 'created_at', 'state', 'contact', 'total_price']
         read_only_fields = ['id']
+
+
+class OrderStateSerializer(serializers.Serializer):
+    id = serializers.IntegerField(min_value=0, allow_null=False)
+    state = serializers.ChoiceField(choices=OrderStateChoices.choices)
 
 
 class CouponSerializer(serializers.ModelSerializer):
