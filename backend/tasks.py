@@ -24,19 +24,22 @@ def send_email(subject: str, message: str, from_email: str, to_email: list[str],
 
 @shared_task
 def import_goods(url: str, user_id: int):
+    shop = Shop.objects.filter(user_id=user_id).first()
+    if shop is None:
+        return JsonResponse({'success': False, 'error': 'No shop found'}, status=http_status.HTTP_404_NOT_FOUND)
     # stream = requests.get(url).content
     path = os.path.join(os.path.dirname(__file__), 'shops_data.yaml')
     with open(path, 'rb') as file:
         stream = file.read()
-    data = yaml.safe_load(stream)
+    try:
+        data = yaml.safe_load(stream)
+    except Exception as err:
+        return JsonResponse({'success': False, 'error': err}, status=http_status.HTTP_400_BAD_REQUEST)
     serializer = ShopGoodsImportSerializer(data=data)
     if serializer.is_valid():
         valid_data = serializer.validated_data
     else:
         return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-    shop = Shop.objects.filter(user_id=user_id).first()
-    if shop is None:
-        return JsonResponse({'success': False}, status=http_status.HTTP_404_NOT_FOUND)
     for category in valid_data['categories']:
         try:
             product_category, _ = Category.objects.get_or_create(id=category['id'])

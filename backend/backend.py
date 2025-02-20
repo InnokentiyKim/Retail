@@ -159,12 +159,18 @@ class SellerBackend:
 
     @staticmethod
     def get_orders(request):
-        orders = Order.objects.filter(
-            ordered_items__product_item__shop__user_id=request.user.id).exclude(
-            state=OrderStateChoices.PREPARING).prefetch_related(
-            'ordered_items__product_item__product__category',
-            'ordered_items__product_item__product_properties__property').select_related(
-            'contact').distinct()
+        cache_key = f'seller_orders_{request.user.id}'
+        orders = cache.get(cache_key)
+        if not orders:
+            orders = Order.objects.filter(
+                ordered_items__product_item__shop__user_id=request.user.id).exclude(
+                state=OrderStateChoices.PREPARING).prefetch_related(
+                'ordered_items__product_item__product__category',
+                'ordered_items__product_item__product_properties__property').select_related(
+                'contact').distinct()
+            if orders is None:
+                return JsonResponse({'success': False, 'error': 'No orders found'}, status=http_status.HTTP_404_NOT_FOUND)
+            cache.set(cache_key, orders, 60)
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -172,12 +178,13 @@ class SellerBackend:
 class BuyerBackend:
     @staticmethod
     def get_shopping_cart(request):
-        cart = cache.get('cart')
-        if not cart:
-            cart = Order.objects.filter(
-                user_id=request.user.id, state=OrderStateChoices.PREPARING).prefetch_related(
-                'ordered_items__product__category').distinct()
-            cache.set('cart', cart, 20)
+        cart = (Order.objects.filter(user_id=request.user.id,
+                                      state=OrderStateChoices.PREPARING).prefetch_related(
+            'ordered_items__product_item__product__category',
+            'ordered_items__product_item__product_properties__property'
+        ).select_related('contact').distinct())
+        if cart is None:
+            return JsonResponse({'success': False, 'error': 'No cart found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = OrderSerializer(cart, many=True)
         return Response(serializer.data)
 
@@ -237,13 +244,19 @@ class BuyerBackend:
         return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
 
     @staticmethod
-    def get_order(request):
-        order = (Order.objects.filter(user_id=request.user.id,
-            state=OrderStateChoices.PREPARING).prefetch_related(
-            'ordered_items__product_item__product__category',
-            'ordered_items__product_item__product_properties'
-        ).select_related('contact').distinct())
-        serializer = OrderSerializer(order, many=True)
+    def get_orders(request):
+        cache_key = f'buyer_orders_{request.user.id}'
+        orders = cache.get(cache_key)
+        if not orders:
+            orders = (Order.objects.filter(user_id=request.user.id).exclude(
+                state=OrderStateChoices.PREPARING).prefetch_related(
+                'ordered_items__product_item__product__category',
+                'ordered_items__product_item__product_properties__property'
+            ).select_related('contact').distinct())
+            if orders is None:
+                return JsonResponse({'success': False, 'error': 'No orders found'}, status=http_status.HTTP_404_NOT_FOUND)
+            cache.set(cache_key, orders, 60)
+        serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
     @staticmethod
@@ -251,6 +264,9 @@ class BuyerBackend:
         coupon = None
         if not {'id', 'contact'}.issubset(request.data) or not request.data['id'].isdigit():
             return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
+        order = Order.objects.get(user_id=request.user.id, id=request.data['id']).first()
+        if order is None:
+            return JsonResponse({'success': False, 'error': 'Order not found'}, status=http_status.HTTP_404_NOT_FOUND)
         contact_data = request.data['contact']
         contact_serializer = ContactSerializer(data=contact_data)
         if not contact_serializer.is_valid():
@@ -261,9 +277,6 @@ class BuyerBackend:
             if coupon is None or not coupon.is_valid():
                 return JsonResponse({'success': False, 'error': 'Coupon not found or invalid'},
                                     status=http_status.HTTP_400_BAD_REQUEST)
-        order = Order.objects.get(user_id=request.user.id, id=request.data['id']).first()
-        if order is None:
-            return JsonResponse({'success': False, 'error': 'Order not found'}, status=http_status.HTTP_404_NOT_FOUND)
         if coupon:
             order.coupon_id = coupon.id
         order.contact_id = contact_data['id']
@@ -280,10 +293,13 @@ class BuyerBackend:
 class ContactBackend:
     @staticmethod
     def get_contacts(request):
-        contacts = cache.get('contacts')
+        cache_key = f'contacts_{request.user.id}'
+        contacts = cache.get(cache_key)
         if not contacts:
             contacts = Contact.objects.filter(user_id=request.user.id)
-            cache.set('contacts', contacts, 20)
+            if contacts is None:
+                return JsonResponse({'success': False, 'error': 'No contacts found'}, status=http_status.HTTP_404_NOT_FOUND)
+            cache.set(cache_key, contacts, 60)
         serializer = ContactSerializer(contacts, many=True)
         return Response(serializer.data)
 
@@ -331,12 +347,15 @@ class ContactBackend:
 class ProductsBackend:
     @staticmethod
     def get_products(self, request):
-        products = cache.get('products')
+        cache_key = f'all_products'
+        products = cache.get(cache_key)
         if not products:
             products = ProductItem.objects.filter(shop__is_active=True).select_related(
                 'shop', 'product__category', 'product_name').distinct()
             products = self.filter_queryset(products)
-            cache.set('products', products, 20)
+            if products is None:
+                return JsonResponse({'success': False, 'error': 'No products found'}, status=http_status.HTTP_404_NOT_FOUND)
+            cache.set(cache_key, products, 60 * 5)
         serializer = ProductItemSerializer(products, many=True)
         return Response(serializer.data)
 
@@ -344,10 +363,7 @@ class ProductsBackend:
 class CouponBackend:
     @staticmethod
     def get_coupons(request):
-        coupons = cache.get('coupons')
-        if not coupons:
-            coupons = Coupon.objects.all()
-            cache.set('coupons', coupons, 30)
+        coupons = Coupon.objects.all()
         serializer = CouponSerializer(coupons, many=True)
         return Response(serializer.data)
 
@@ -389,17 +405,16 @@ class CouponBackend:
         return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
 
 
-class ManagerBackend:
+class ManagerBackend(CouponBackend):
     @staticmethod
     def get_orders(request):
-        orders = cache.get('orders')
-        if not orders:
-            orders = (Order.objects.all().exclude(
-                state=OrderStateChoices.PREPARING).prefetch_related(
-                'ordered_items__product_item__product__category',
-                'ordered_items__product_item__product_properties'
-            ).select_related('contact').distinct())
-            cache.set('orders', orders, 20)
+        orders = (Order.objects.all().exclude(
+            state=OrderStateChoices.PREPARING).prefetch_related(
+            'ordered_items__product_item__product__category',
+            'ordered_items__product_item__product_properties__property'
+        ).select_related('contact').distinct())
+        if orders is None:
+            return JsonResponse({'success': False, 'error': 'No orders found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 

@@ -1,8 +1,13 @@
+from re import search
+
+from django.core.cache import cache
+from django.views.decorators.cache import cache_page
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.request import Request
-from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend, CouponBackend
+from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend, CouponBackend, \
+    ManagerBackend
 from .filters import ProductItemFilter
 from .models import Shop, Category
 from .permissions import IsSeller, IsBuyer
@@ -58,6 +63,23 @@ class ShopsView(ListAPIView):
     filterset_fields = ['id', 'name']
     search_fields = ['name', 'description']
     ordering_fields = ['id', 'name']
+
+    @cache_page(60 * 15)
+    def get(self, request, *args, **kwargs):
+        cache_key = self.get_cache_key(request, **kwargs)
+        result = cache.get(cache_key)
+        if not result:
+            result = super().get(request, *args, **kwargs)
+            if result is not None:
+                cache.set(cache_key, result.data, 60 * 15)
+        return result
+
+    @staticmethod
+    def get_cache_key(request, **kwargs):
+        used_filters = request.GET.get('filters', '')
+        used_search = request.GET.get('search', '')
+        used_ordering = request.GET.get('ordering', '')
+        return f'shops_{used_filters}_{used_search}_{used_ordering}'
 
 
 class SellerShopView(APIView):
@@ -125,11 +147,11 @@ class ContactView(APIView):
         return ContactBackend.delete_contact(request)
 
 
-class OrderView(APIView):
+class BuyerOrdersView(APIView):
     permission_classes = (IsAuthenticated, IsBuyer)
 
     def get(self, request, *args, **kwargs):
-        return BuyerBackend.get_order(request)
+        return BuyerBackend.get_orders(request)
 
     def post(self, request, *args, **kwargs):
         return BuyerBackend.confirm_order(request, sender=self.__class__)
@@ -139,13 +161,23 @@ class CouponView(APIView):
     permission_classes = (IsAuthenticated, IsAdminUser)
 
     def get(self, request, *args, **kwargs):
-        return CouponBackend.get_coupons(request)
+        return ManagerBackend.get_coupons(request)
 
     def post(self, request, *args, **kwargs):
-        return CouponBackend.create_coupon(request)
+        return ManagerBackend.create_coupon(request)
 
     def put(self, request, *args, **kwargs):
-        return CouponBackend.update_coupon(request)
+        return ManagerBackend.update_coupon(request)
 
     def delete(self, request, *args, **kwargs):
-        return CouponBackend.delete_coupon(request)
+        return ManagerBackend.delete_coupon(request)
+
+
+class ManagerOrdersView(APIView):
+    permission_classes = (IsAuthenticated, IsAdminUser)
+
+    def get(self, request, *args, **kwargs):
+        return ManagerBackend.get_orders(request)
+
+    def put(self, request, *args, **kwargs):
+        return ManagerBackend.change_orders_state(request)

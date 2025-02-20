@@ -4,7 +4,7 @@ from rest_framework_simplejwt.views import TokenRefreshView, TokenObtainPairView
 
 from backend.views import AccountRegisterView, AccountConfirmView, AccountView, SellerGoodsView, \
     CategoriesView, ShopsView, ProductItemView, ShoppingCartView, SellerStatusView, SellerOrdersView, \
-    ContactView, OrderView, CouponView, SellerShopView
+    ContactView, BuyerOrdersView, CouponView, SellerShopView
 
 app_name = 'backend'
 urlpatterns = [
@@ -19,11 +19,12 @@ urlpatterns = [
     path('seller/goods', SellerGoodsView.as_view(), name='seller-goods'),
     path('seller/status', SellerStatusView.as_view(), name='seller-status'),
     path('seller/orders', SellerOrdersView.as_view(), name='seller-orders'),
-    path('seller/shops', SellerShopView.as_view(), name='seller-shop'),
+    path('seller/shop', SellerShopView.as_view(), name='seller-shop'),
     path('categories', CategoriesView.as_view(), name='categories'),
     path('shops', ShopsView.as_view(), name='shops'),
     path('products', ProductItemView.as_view(), name='products'),
-    path('shoppingcart', ShoppingCartView.as_view(), name='shoppingcart'),
-    path('orders', OrderView.as_view(), name='orders'),
-    path('coupons', CouponView.as_view(), name='coupons'),
+    path('buyer/shoppingcart', ShoppingCartView.as_view(), name='shoppingcart'),
+    path('buyer/orders', BuyerOrdersView.as_view(), name='orders'),
+    path('manager/orders', BuyerOrdersView.as_view(), name='manager-orders'),
+    path('manager/coupons', CouponView.as_view(), name='manager-coupons'),
 ]

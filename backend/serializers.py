@@ -180,6 +180,5 @@ class ShopProductSerializer(serializers.Serializer):
 
 
 class ShopGoodsImportSerializer(serializers.Serializer):
-    shop = serializers.CharField()
     categories = ShopCategorySerializer(many=True)
     goods = ShopProductSerializer(many=True)
