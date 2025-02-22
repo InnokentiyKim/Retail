@@ -11,6 +11,11 @@ def settings():
     from django.conf import settings
     settings.DEBUG = True
     settings.REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+    settings.CASHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        }
+    }
     return settings
 
 

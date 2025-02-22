@@ -1,11 +1,27 @@
+from django.db import IntegrityError
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import Table
 from reportlab.lib.units import inch
-from .models import Order
+from .models import Order, ProductItem
 
 
-def create_order_report(order_obj: Order):
+def update_ordered_items_quantity(order: Order) -> bool:
+    products_to_update = []
+    for item in order.ordered_items.all():
+        updated_quantity = item.product_item.quantity - item.quantity
+        if updated_quantity < 0:
+            return False
+        item.product_item.quantity = updated_quantity
+        products_to_update.append(item.product_item)
+    try:
+        ProductItem.objects.bulk_update(products_to_update, ["quantity"])
+    except IntegrityError:
+        return False
+    return True
+
+
+def create_order_report(order_obj: Order) -> str | None:
     try:
         filename = f"order_{order_obj.id}.pdf"
         doc = canvas.Canvas(filename, pagesize=letter)

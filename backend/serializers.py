@@ -4,6 +4,10 @@ from backend.models import User, Shop, Category, Product, Coupon
 from rest_framework import serializers
 
 
+class ObjectIDSerializer(serializers.Serializer):
+    id = serializers.IntegerField(min_value=0, allow_null=False)
+
+
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
         model = Contact
@@ -15,9 +19,6 @@ class ContactSerializer(serializers.ModelSerializer):
             'structure': {'required': False},
             'building': {'required': False},
         }
-
-class ContactDeleteSerializer(serializers.Serializer):
-    id = serializers.IntegerField(min_value=0, allow_null=False)
 
 
 class UserSerializer(serializers.ModelSerializer):
@@ -124,6 +125,12 @@ class OrderSerializer(serializers.ModelSerializer):
 class OrderStateSerializer(serializers.Serializer):
     id = serializers.IntegerField(min_value=0, allow_null=False)
     state = serializers.ChoiceField(choices=OrderStateChoices.choices)
+
+
+class OrderConfirmSerializer(serializers.Serializer):
+    id = serializers.IntegerField(min_value=0, allow_null=False)
+    contact = serializers.IntegerField(min_value=0, allow_null=False)
+    coupon_code = serializers.CharField(max_length=60, required=False, allow_null=True)
 
 
 class CouponSerializer(serializers.ModelSerializer):

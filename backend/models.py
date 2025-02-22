@@ -145,7 +145,7 @@ class ProductItem(models.Model):
 
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_items', verbose_name='Продукт')
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='product_items', verbose_name='Магазин')
-    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1), MaxValueValidator(10000)],
+    quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(0), MaxValueValidator(10000)],
                                            verbose_name='Количество')
     preview = models.ImageField(upload_to="images/%Y/%m/%d", blank=True, null=True,
                                 verbose_name='Превью')
@@ -263,6 +263,14 @@ class Order(models.Model):
         if self.coupon and self.coupon.is_valid():
             return Decimal(1 - self.coupon.discount / 100) * sum(item.get_cost() for item in self.ordered_items.all())
         return sum(item.get_cost() for item in self.ordered_items.all())
+
+    def is_valid(self):
+        if not self.ordered_items.all():
+            return False
+        for item in self.ordered_items.all():
+            if item.product_item.quantity < item.quantity:
+                return False
+        return True
 
 
 class OrderItem(models.Model):
