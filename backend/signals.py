@@ -14,6 +14,9 @@ new_order = Signal()
 
 @receiver(reset_password_token_created)
 def password_reset_token_created(sender, instance, reset_password_token, *args, **kwargs):
+    """
+    Сигнал для отправки токена сброса пароля
+    """
     subject = "Password Reset Token"
     body = reset_password_token.key
     to_email = [reset_password_token.email]
@@ -22,6 +25,9 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
 
 @receiver(post_save, sender=User)
 def new_user_registered_signal(sender: Type[User], instance: User, created: bool, **kwargs):
+    """
+    Сигнал для отправки токена подтверждения email
+    """
     if created and not instance.is_active:
         token, _ = EmailTokenConfirm.objects.get_or_create(user=instance)
         subject = "Email confirm token"
@@ -32,6 +38,9 @@ def new_user_registered_signal(sender: Type[User], instance: User, created: bool
 
 @receiver(new_order)
 def new_order_signal(user_id, order_state, report=None, **kwargs):
+    """
+    Сигнал для отправки уведомления о статусе заказа
+    """
     user = User.objects.get(pk=user_id)
     if user is not None:
         subject = "Обновление статуса заказа"

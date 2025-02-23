@@ -3,17 +3,30 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import Table
 from reportlab.lib.units import inch
-from .models import Order, ProductItem
+from .models import Order, ProductItem, OrderStateChoices
 
 
 def update_ordered_items_quantity(order: Order) -> bool:
+    """
+    Функция обновляет количество товаров продавца после успешного создания заказа
+
+    Параметры:
+        order (Order): Объект заказа
+    Возвращает:
+        - True, если обновление прошло успешно
+        - False, если обновление не удалось
+    """
     products_to_update = []
-    for item in order.ordered_items.all():
-        updated_quantity = item.product_item.quantity - item.quantity
+    for ordered_item in order.ordered_items.all():
+        updated_quantity = ordered_item.product_item.quantity
+        if order.state == OrderStateChoices.CONFIRMED:
+            updated_quantity -= ordered_item.quantity
+        elif order.state == OrderStateChoices.CANCELED:
+            updated_quantity += ordered_item.quantity
         if updated_quantity < 0:
             return False
-        item.product_item.quantity = updated_quantity
-        products_to_update.append(item.product_item)
+        ordered_item.product_item.quantity = updated_quantity
+        products_to_update.append(ordered_item.product_item)
     try:
         ProductItem.objects.bulk_update(products_to_update, ["quantity"])
     except IntegrityError:
@@ -22,6 +35,15 @@ def update_ordered_items_quantity(order: Order) -> bool:
 
 
 def create_order_report(order_obj: Order) -> str | None:
+    """
+    Функция создает отчет о заказе в формате pdf
+
+    Параметры:
+        order_obj (Order): Объект заказа
+    Возвращает:
+        - Путь к файлу отчета, если создание прошло успешно
+        - None, если создание не удалось
+    """
     try:
         filename = f"order_{order_obj.id}.pdf"
         doc = canvas.Canvas(filename, pagesize=letter)

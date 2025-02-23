@@ -2,14 +2,10 @@ from rest_framework import permissions
 from backend.models import UserTypeChoices
 
 
-class IsOwnerOrReadOnly(permissions.BasePermission):
-    def has_object_permission(self, request, view, obj):
-        if request.method in permissions.SAFE_METHODS:
-            return True
-        return obj.user == request.user
-
-
 class IsSeller(permissions.BasePermission):
+    """
+    Класс разрешений для проверки является ли пользователь продавцом
+    """
     def has_permission(self, request, view):
         if request.user and request.user.type == UserTypeChoices.SELLER:
             return True
@@ -17,6 +13,9 @@ class IsSeller(permissions.BasePermission):
 
 
 class IsBuyer(permissions.BasePermission):
+    """
+    Класс разрешений для проверки является ли пользователь покупателем
+    """
     def has_permission(self, request, view):
         if request.user and request.user.type == UserTypeChoices.BUYER:
             return True

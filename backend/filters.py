@@ -3,6 +3,9 @@ from backend.models import ProductItem
 
 
 class ProductItemFilter(filters.FilterSet):
+    """
+    Фильтры для модели ProductItem
+    """
     shop_id = filters.NumberFilter(field_name='shop_id', lookup_expr='exact')
     category_id = filters.NumberFilter(field_name='product__category_id')
     search = filters.CharFilter(field_name='product__name', lookup_expr='icontains')

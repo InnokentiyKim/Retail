@@ -10,6 +10,9 @@ import uuid
 
 
 class OrderStateChoices(models.TextChoices):
+    """
+    Состояния заказа
+    """
     PREPARING = "PREPARING", "Подготавливается"
     CREATED = "CREATED", "Создан"
     CONFIRMED = "CONFIRMED", "Подтвержден"
@@ -20,11 +23,17 @@ class OrderStateChoices(models.TextChoices):
 
 
 class UserTypeChoices(models.TextChoices):
+    """
+    Тип пользователя
+    """
     SELLER = "SL", "Seller"
     BUYER = "BR", "Buyer"
 
 
 class UserManager(BaseUserManager):
+    """
+    Менеджер для модели User
+    """
     use_in_migrations = True
 
     def _create_user(self, email, password, **extra_fields):
@@ -55,6 +64,14 @@ class UserManager(BaseUserManager):
 
 
 class User(AbstractUser):
+    """
+    Модель пользователя
+    Поля:
+        - type (UserTypeChoices): Тип пользователя
+        - email (str): Почта пользователя
+        - is_active (bool): Пользователь активен
+        - username (str): Имя пользователя
+    """
     objects = UserManager()
     USERNAME_FIELD = 'email'
     REQUIRED_FIELDS = []
@@ -76,7 +93,7 @@ class User(AbstractUser):
     )
 
     def __str__(self):
-        return f"{self.username} {self.email} - {self.type}"
+        return f"{self.first_name} {self.last_name} - {self.type}"
 
     class Meta:
         verbose_name = 'Пользователь'
@@ -84,6 +101,15 @@ class User(AbstractUser):
 
 
 class Shop(models.Model):
+    """
+    Модель магазина
+    Поля:
+        - name (str): Название магазина
+        - url (str): Ссылка на файл продуктов магазина
+        - description (str): Описание магазина
+        - user (User): Пользователь
+        - is_active (bool): Магазин активен
+    """
     objects = models.manager.Manager()
 
     name = models.CharField(max_length=100, verbose_name='Название магазина')
@@ -105,6 +131,12 @@ class Shop(models.Model):
 
 
 class Category(models.Model):
+    """
+    Модель категории
+    Поля:
+        - name (str): Название категории
+        - shops (Shop): Магазины
+    """
     objects = models.manager.Manager()
 
     name = models.CharField(max_length=80, verbose_name='Название категории')
@@ -123,6 +155,12 @@ class Category(models.Model):
 
 
 class Product(models.Model):
+    """
+    Модель продукта
+    Поля:
+        - name (str): Название продукта
+        - category (Category): Категория
+    """
     objects = models.manager.Manager()
 
     name = models.CharField(max_length=100, verbose_name='Название продукта')
@@ -141,8 +179,19 @@ class Product(models.Model):
 
 
 class ProductItem(models.Model):
+    """
+    Модель экземпляра продукта
+    Поля:
+        - product (Product): Продукт
+        - shop (Shop): Магазин
+        - quantity (int): Количество
+        - preview (Image): Превью
+        - price (int): Цена продукта
+        - price_retail (int): Розничная цена продукта
+    """
     objects = models.manager.Manager()
 
+    article_id = models.IntegerField(blank=True, null=True, verbose_name='Артикул товара')
     product = models.ForeignKey(Product, on_delete=models.CASCADE, related_name='product_items', verbose_name='Продукт')
     shop = models.ForeignKey(Shop, on_delete=models.CASCADE, related_name='product_items', verbose_name='Магазин')
     quantity = models.PositiveIntegerField(default=1, validators=[MinValueValidator(0), MaxValueValidator(10000)],
@@ -162,6 +211,11 @@ class ProductItem(models.Model):
 
 
 class Property(models.Model):
+    """
+    Модель свойства
+    Поля:
+        - name (str): Название
+    """
     objects = models.manager.Manager()
     name = models.CharField(max_length=100, verbose_name='Название свойства')
 
@@ -175,6 +229,13 @@ class Property(models.Model):
 
 
 class ProductProperty(models.Model):
+    """
+    Модель свойства товара
+    Поля:
+        - product_item (ProductItem): Экземпляр продукта
+        - property (Property): Свойство
+        - value (str): Значение
+    """
     objects = models.manager.Manager()
 
     product_item = models.ForeignKey(ProductItem, blank=True, on_delete=models.CASCADE,
@@ -193,6 +254,19 @@ class ProductProperty(models.Model):
 
 
 class Contact(models.Model):
+    """
+    Модель контактов пользователя
+    Поля:
+        - user (User): Пользователь
+        - phone (str): Номер телефона
+        - country (str): Страна (опционально)
+        - city (str): Город
+        - street (str): Улица
+        - house (str): Дом
+        - structure (str): Корпус (опционально)
+        - building (str): Строение (опционально)
+        - apartment (str): Квартира
+    """
     objects = models.manager.Manager()
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contacts', blank=True, null=True,
@@ -214,9 +288,22 @@ class Contact(models.Model):
         verbose_name_plural = 'Список контактов пользователей'
 
 def default_valid_to():
+    """
+    Функция для генерации даты окончания действия купона по умолчанию
+    """
     return timezone.now() + timedelta(days=30)
 
 class Coupon(models.Model):
+    """
+    Модель купона
+    Поля:
+        - code (str): Код купона
+        - valid_from (datetime): Дата начала действия купона
+        - valid_to (datetime): Дата окончания действия купона
+        - discount (int): Скидка
+        - active (bool): Активен
+        - created_at (datetime): Дата создания купона
+    """
     objects = models.manager.Manager()
 
     code = models.CharField(max_length=60, unique=True, verbose_name='Код купона')
@@ -240,6 +327,15 @@ class Coupon(models.Model):
 
 
 class Order(models.Model):
+    """
+    Модель заказа
+    Поля:
+        - user (User): Пользователь
+        - created_at (datetime): Дата создания заказа
+        - state (str): Состояние заказа
+        - contact (Contact): Контакт
+        - coupon (Coupon): Купон (опционально)
+    """
     objects = models.manager.Manager()
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='orders', verbose_name='Пользователь')
@@ -268,12 +364,20 @@ class Order(models.Model):
         if not self.ordered_items.all():
             return False
         for item in self.ordered_items.all():
-            if item.product_item.quantity < item.quantity:
+            is_active_shop = item.product_item.shop.is_active
+            if item.product_item.quantity < item.quantity or is_active_shop is False:
                 return False
         return True
 
 
 class OrderItem(models.Model):
+    """
+    Модель позиции заказа
+    Поля:
+        - order (Order): Заказ
+        - product_item (ProductItem): Экземпляр продукта
+        - quantity (int): Количество
+    """
     objects = models.manager.Manager()
 
     order = models.ForeignKey(Order, blank=True, on_delete=models.CASCADE, related_name='ordered_items', verbose_name='Заказ')
@@ -296,6 +400,13 @@ class OrderItem(models.Model):
 
 
 class EmailTokenConfirm(models.Model):
+    """
+    Модель токена для подтверждения email
+    Поля:
+        - user (User): Пользователь
+        - created_at (datetime): Дата создания токена
+        - key (str): токен
+    """
     objects = models.manager.Manager()
 
     class Meta:
@@ -317,4 +428,3 @@ class EmailTokenConfirm(models.Model):
 
     def __str__(self):
         return f"Password reset token for {self.user}"
-

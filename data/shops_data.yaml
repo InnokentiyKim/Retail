@@ -11,6 +11,7 @@ categories:
 goods:
   - id: 1
     category: 1
+    article_id: 1
     name: Смартфон Apple iPhone XS Max 512GB (золотистый)
     price: 116000
     price_retail: 116990
@@ -23,6 +24,7 @@ goods:
       "Цвет": золотистый
   - id: 2
     category: 1
+    article_id: 2
     name: Смартфон Apple iPhone XR 256GB (красный)
     price: 65000
     price_retail: 69990
@@ -35,6 +37,7 @@ goods:
       "Цвет": красный
   - id: 3
     category: 1
+    article_id: 3
     name: Смартфон Apple iPhone XR 256GB (черный)
     price: 65000
     price_retail: 69990
@@ -47,6 +50,7 @@ goods:
       "Цвет": черный
   - id: 4
     category: 1
+    article_id: 4
     name: Смартфон Apple iPhone XR 128GB (синий)
     price: 60000
     price_retail: 64990
@@ -59,6 +63,7 @@ goods:
       "Цвет": синий
   - id: 5
     category: 1
+    article_id: 5
     name: Smartphone Samsung Galaxy S20 128GB (black)
     price: 80000
     price_retail: 84990
@@ -71,6 +76,7 @@ goods:
       "Color": black
   - id: 6
     category: 1
+    article_id: 6
     name: Smartphone Samsung Galaxy Note20 256GB (mystic bronze)
     price: 95000
     price_retail: 99990
@@ -83,6 +89,7 @@ goods:
       "Color": mystic bronze
   - id: 7
     category: 3
+    article_id: 7
     name: USB Flash Drive SanDisk Ultra Flair 64GB (silver)
     price: 1500
     price_retail: 1990
@@ -93,6 +100,7 @@ goods:
       "Color": silver
   - id: 8
     category: 3
+    article_id: 8
     name: USB Flash Drive Kingston DataTraveler 32GB (red)
     price: 1000
     price_retail: 1290
@@ -103,6 +111,7 @@ goods:
       "Color": red
   - id: 9
     category: 1
+    article_id: 9
     name: Smartphone Xiaomi Mi 10T Pro 256GB (cosmic black)
     price: 70000
     price_retail: 74990
@@ -115,6 +124,7 @@ goods:
       "Color": cosmic black
   - id: 10
     category: 4
+    article_id: 10
     name: Samsung QLED Q90R 65" 4K UHD Smart TV
     price: 2500
     price_retail: 2999
@@ -126,6 +136,7 @@ goods:
       "Smart TV": true
   - id: 11
     category: 4
+    article_id: 11
     name: LG OLED CX 55" 4K UHD Smart TV
     price: 1800
     price_retail: 1999
@@ -137,6 +148,7 @@ goods:
       "Smart TV": true
   - id: 12
     category: 4
+    article_id: 12
     name: Sony Bravia X900H 75" 4K UHD Smart TV
     price: 3000
     price_retail: 3499
@@ -148,6 +160,7 @@ goods:
       "Smart TV": true
   - id: 13
     category: 4
+    article_id: 13
     name: TCL 6-Series 55" 4K UHD Smart TV
     price: 700
     price_retail: 799
@@ -159,6 +172,7 @@ goods:
       "Smart TV": true
   - id: 14
     category: 4
+    article_id: 14
     name: Vizio P-Series Quantum 65" 4K UHD Smart TV
     price: 1200
     price_retail: 1299

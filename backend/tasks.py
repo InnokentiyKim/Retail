@@ -15,6 +15,16 @@ from backend.serializers import ShopGoodsImportSerializer
 
 @shared_task
 def send_email(subject: str, message: str, from_email: str, to_email: list[str], attachment: str|Any=None):
+    """
+    Задача Celery для отправки письма по email
+
+    Параметры:
+        - subject (str): Тема письма
+        - message (str): Текст сообщения
+        - from_email (str): Адрес отправителя
+        - to_email (list[str]): Список адресов получателей
+        - attachment (str|Any): Путь к файлу вложения
+    """
     if attachment is None:
         msg = EmailMultiAlternatives(subject=subject, body=message, from_email=from_email, to=to_email)
     else:
@@ -24,6 +34,13 @@ def send_email(subject: str, message: str, from_email: str, to_email: list[str],
 
 @shared_task
 def import_goods(url: str, user_id: int):
+    """
+    Задача Celery для импорта товаров из YAML-файла
+
+    Параметры:
+        - url (str): URL YAML-файла
+        - user_id (int): Идентификатор пользователя
+    """
     shop = Shop.objects.filter(user_id=user_id).first()
     if shop is None:
         return JsonResponse({'success': False, 'error': 'No shop found'}, status=http_status.HTTP_404_NOT_FOUND)
@@ -52,6 +69,7 @@ def import_goods(url: str, user_id: int):
             product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category'])
             product_item = ProductItem.objects.create(
                 product_id=product.id,
+                article_id=item['article_id'],
                 shop_id=shop.id,
                 price=item['price'],
                 price_retail=item['price_retail'],
@@ -71,6 +89,13 @@ def import_goods(url: str, user_id: int):
 
 @shared_task
 def export_to_csv(options, queryset):
+    """
+    Задача Celery для экспорта данных в CSV-файл
+
+    Параметры:
+        - options (Any): Метаданные модели
+        - queryset (QuerySet): Запрос на выборку
+    """
     content_disposition = f"attachment; filename={options.verbose_name}.csv"
     response = HttpResponse(content_type="text/csv")
     response['Content-Disposition'] = content_disposition

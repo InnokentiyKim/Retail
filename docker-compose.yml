@@ -16,10 +16,16 @@ services:
       - "15672:15672"
     restart: always
 
-  redis:
+  redis-cache:
     image: redis
     ports:
       - "6379:6379"
+    restart: always
+
+  redis-db:
+    image: redis
+    ports:
+      - "6380:6380"
     restart: always
 
   app:
@@ -42,5 +48,6 @@ services:
     depends_on:
       - db
       - rabbitmq
-      - redis
+      - redis-db
+      - redis-cache
     restart: always

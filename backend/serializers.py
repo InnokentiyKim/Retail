@@ -158,12 +158,13 @@ class ShopCategorySerializer(serializers.Serializer):
 
 class ShopProductSerializer(serializers.Serializer):
     id = serializers.IntegerField()
+    article_id = serializers.IntegerField(allow_null=True)
     category = serializers.IntegerField()
     name = serializers.CharField()
     price = serializers.DecimalField(max_digits=10, decimal_places=2)
-    price_retail = serializers.DecimalField(max_digits=10, decimal_places=2)
+    price_retail = serializers.DecimalField(amax_digits=10, decimal_places=2, allow_null=True)
     quantity = serializers.IntegerField()
-    properties = serializers.DictField()
+    properties = serializers.DictField(allow_null=True)
 
     def validate_category(self, value):
         if value < 0:

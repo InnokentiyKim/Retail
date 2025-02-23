@@ -93,15 +93,19 @@ DATABASES = {
 }
 
 
+REDIS_CACHE_HOST = os.getenv('REDIS_CACHE_HOST', 'localhost')
+REDIS_CACHE_PORT = os.getenv('REDIS_CACHE_PORT', '6379')
+REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
+
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = os.getenv('REDIS_PORT', '6379')
+REDIS_PORT = os.getenv('REDIS_PORT', '6380')
 REDIS_DB = os.getenv('REDIS_DB', '0')
 
 
 CACHES = {
     'default': {
         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': f'redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}',
+        'LOCATION': f'redis://{REDIS_CACHE_HOST}:{REDIS_CACHE_PORT}/{REDIS_CACHE_DB}',
         'TIMEOUT': 60 * 5,
         'OPTIONS': {
             'CLIENT_CLASS': 'django_redis.client.DefaultClient',
