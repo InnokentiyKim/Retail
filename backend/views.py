@@ -1,4 +1,5 @@
 from django.core.cache import cache
+from drf_spectacular.utils import extend_schema
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
@@ -10,6 +11,7 @@ from .permissions import IsSeller, IsBuyer
 from .serializers import CategorySerializer, ShopSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
+from .api_config import APIConfig
 
 
 class AccountRegisterView(APIView):
@@ -35,9 +37,11 @@ class AccountView(APIView):
     """
     permission_classes = (IsAuthenticated,)
 
+    @extend_schema(**APIConfig.get_users_account_config())
     def get(self, request):
         return UserBackend.get_account_info(request)
 
+    @extend_schema(**APIConfig.change_users_account_config())
     def post(self, request):
         return UserBackend.change_account_info(request)
 
@@ -49,6 +53,7 @@ class SellerGoodsView(APIView):
     """
     permission_classes = (IsAuthenticated, IsSeller)
 
+    @extend_schema(**APIConfig.import_seller_goods_config())
     def post(self, request, *args, **kwargs):
         return SellerBackend.import_seller_goods(request, args, kwargs)
 
@@ -66,6 +71,10 @@ class CategoriesView(ListAPIView):
     filterset_fields = ['id', 'name']
     search_fields = ['name']
     ordering_fields = ['id', 'name']
+
+    @extend_schema(**APIConfig.get_category_config())
+    def get(self, request, *args, **kwargs):
+        return super().get(request, *args, **kwargs)
 
 
 class ShopsView(ListAPIView):
@@ -92,6 +101,7 @@ class ShopsView(ListAPIView):
         used_ordering = request.GET.get('ordering', '')
         return f'shops_{used_filters}_{used_search}_{used_ordering}'
 
+    @extend_schema(**APIConfig.get_shops_config())
     def get(self, request, *args, **kwargs):
         """
         Переопределение метода получения списка магазинов
@@ -113,6 +123,7 @@ class SellerShopView(APIView):
     """
     permission_classes = (IsAuthenticated, IsSeller)
 
+    @extend_schema(**APIConfig.create_shop_config())
     def post(self, request, *args, **kwargs):
         return SellerBackend.create_shop(request)
 
@@ -126,6 +137,7 @@ class ProductItemView(APIView):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductItemFilter
 
+    @extend_schema(**APIConfig.get_products_config())
     def get(self, request, *args, **kwargs):
         return ProductsBackend.get_products(self, request)
 
@@ -137,24 +149,28 @@ class ShoppingCartView(APIView):
     """
     permission_classes = (IsAuthenticated, IsBuyer)
 
+    @extend_schema(**APIConfig.get_shopping_cart_config())
     def get(self, request, *args, **kwargs):
         """
         Получение списка товаров в корзине
         """
         return BuyerBackend.get_shopping_cart(request)
 
+    @extend_schema(**APIConfig.create_shopping_cart_config())
     def post(self, request, *args, **kwargs):
         """
         Добавление товара в корзину
         """
         return BuyerBackend.create_update_shopping_cart(request)
 
+    @extend_schema(**APIConfig.update_shopping_cart_config())
     def put(self, request, *args, **kwargs):
         """
         Обновление количества товара в корзине
         """
         return BuyerBackend.update_shopping_cart(request)
 
+    @extend_schema(**APIConfig.delete_shopping_cart_config())
     def delete(self, request, *args, **kwargs):
         """
         Удаление товара из корзины
@@ -169,12 +185,14 @@ class SellerStatusView(APIView):
     """
     permission_classes = (IsAuthenticated, IsSeller)
 
+    @extend_schema(**APIConfig.get_seller_status_config())
     def get(self, request, *args, **kwargs):
         """
         Получение статуса продавца
         """
         return SellerBackend.get_status(request)
 
+    @extend_schema(**APIConfig.change_seller_status_config())
     def post(self, request, *args, **kwargs):
         """
         Изменение статуса продавца
@@ -189,6 +207,7 @@ class SellerOrdersView(APIView):
     """
     permission_classes = (IsAuthenticated, IsSeller)
 
+    @extend_schema(**APIConfig.get_seller_orders_config())
     def get(self, request, *args, **kwargs):
         return SellerBackend.get_orders(request)
 
@@ -198,26 +217,30 @@ class ContactView(APIView):
     Представление для работы с контактами пользователя
     Доступно только для авторизованного пользователя
     """
-    permission_classes = (IsAuthenticated,)
+    permission_classes = (IsAuthenticated, (IsBuyer | IsSeller | IsAdminUser))
 
+    @extend_schema(**APIConfig.get_contact_config())
     def get(self, request, *args, **kwargs):
         """
         Получение списка контактов
         """
         return ContactBackend.get_contacts(request)
 
+    @extend_schema(**APIConfig.create_contact_config())
     def post(self, request, *args, **kwargs):
         """
         Создание контакта
         """
         return ContactBackend.create_contact(request)
 
+    @extend_schema(**APIConfig.update_contact_config())
     def put(self, request, *args, **kwargs):
         """
         Обновление контакта
         """
         return ContactBackend.update_contact(request)
 
+    @extend_schema(**APIConfig.delete_contact_config())
     def delete(self, request, *args, **kwargs):
         """
         Удаление контакта
@@ -232,12 +255,14 @@ class BuyerOrdersView(APIView):
     """
     permission_classes = (IsAuthenticated, IsBuyer)
 
+    @extend_schema(**APIConfig.get_buyer_orders())
     def get(self, request, *args, **kwargs):
         """
         Получение истории заказов
         """
         return BuyerBackend.get_orders(request)
 
+    @extend_schema(**APIConfig.confirm_buyer_order_config())
     def post(self, request, *args, **kwargs):
         """
         Подтверждение заказа
@@ -252,24 +277,28 @@ class CouponView(APIView):
     """
     permission_classes = (IsAuthenticated, IsAdminUser)
 
+    @extend_schema(**APIConfig.get_coupons_config())
     def get(self, request, *args, **kwargs):
         """
         Получение списка купонов
         """
         return ManagerBackend.get_coupons(request)
 
+    @extend_schema(**APIConfig.create_coupon_config())
     def post(self, request, *args, **kwargs):
         """
         Создание купона
         """
         return ManagerBackend.create_coupon(request)
 
+    @extend_schema(**APIConfig.update_coupon_config())
     def put(self, request, *args, **kwargs):
         """
         Обновление купона
         """
         return ManagerBackend.update_coupon(request)
 
+    @extend_schema(**APIConfig.delete_coupon_config())
     def delete(self, request, *args, **kwargs):
         """
         Удаление купона
@@ -284,17 +313,19 @@ class ManagerOrdersView(APIView):
     """
     permission_classes = (IsAuthenticated, IsAdminUser)
 
+    @extend_schema(**APIConfig.get_manager_orders_config())
     def get(self, request, *args, **kwargs):
         """
         Получение списка заказов
         """
         return ManagerBackend.get_orders(request)
 
+    @extend_schema(**APIConfig.update_manager_order_config())
     def put(self, request, *args, **kwargs):
         """
         Изменение статуса заказа
         """
-        return ManagerBackend.change_orders_state(request)
+        return ManagerBackend.change_orders_state(request, sender=self.__class__)
 
 
 class PopularProductsView(APIView):
@@ -303,6 +334,7 @@ class PopularProductsView(APIView):
     """
     permission_classes = (AllowAny,)
 
+    @extend_schema(**APIConfig.get_popular_products_config())
     def get(self, request, *args, **kwargs):
         """
         Получение списка наиболее популярных товаров
@@ -311,4 +343,7 @@ class PopularProductsView(APIView):
         amount = request.GET.get('amount', None)
         if amount and amount.isdigit() and int(amount) > 0:
             return ProductsBackend.get_product_ranking(int(amount))
-        return ProductsBackend.get_product_ranking(5)
+        else:
+            return ProductsBackend.get_product_ranking(5)
+
+

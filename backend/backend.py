@@ -13,7 +13,7 @@ from .models import EmailTokenConfirm, Shop, ProductItem, Order, \
 from .order import create_order_report, update_ordered_items_quantity
 from .serializers import UserSerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, ContactSerializer, \
     ProductItemSerializer, CouponSerializer, OrderItemUpdateSerializer, OrderItemCreateUpdateSerializer, \
-    OrderItemDeleteSerializer, ObjectIDSerializer, OrderStateSerializer, OrderConfirmSerializer
+    OrderItemDeleteSerializer, ObjectIDSerializer, OrderStateSerializer, OrderConfirmSerializer, ProductSerializer
 from rest_framework import status as http_status
 from django.core.validators import URLValidator
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
@@ -128,8 +128,11 @@ class UserBackend:
 
         user_serializer = UserSerializer(request.user, data=request.data, partial=True)
         if user_serializer.is_valid():
-            user_serializer.save()
-            return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
+            try:
+                user_serializer.save()
+                return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
+            except IntegrityError as err:
+                return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
         return JsonResponse({'success': False, 'errors': user_serializer.errors},
                                 status=http_status.HTTP_400_BAD_REQUEST)
 
@@ -272,9 +275,8 @@ class ProductsBackend:
         cache_key = 'all_products'
         products = cache.get(cache_key)
         if not products:
-            products = ProductItem.objects.filter(shop__is_active=True, quantity__gt=0).select_related(
-                'shop', 'product__category', 'product_name').distinct()
-            products = self.filter_queryset(products)
+            products = ProductItem.objects.filter(shop__is_active=True, quantity__gt=0).prefetch_related(
+                'shop', 'product__category', 'product__name').distinct()
             if products is None:
                 return JsonResponse({'success': False, 'error': 'No products found'}, status=http_status.HTTP_404_NOT_FOUND)
             cache.set(cache_key, products, 60 * 5)
@@ -298,7 +300,7 @@ class ProductsBackend:
         return None
 
     @staticmethod
-    def get_product_ranking(count: int) -> list[Product]:
+    def get_product_ranking(count: int):
         """
         Возвращает список самых популярных товаров.
         Этот метод извлекает из Redis рейтинг товаров и возвращает список самых популярных товаров.
@@ -313,7 +315,10 @@ class ProductsBackend:
         product_ranking_ids = [int(prod_id) for prod_id in product_ranking]
         most_popular_products = list(Product.objects.filter(id__in=product_ranking_ids))
         most_popular_products.sort(key=lambda x: product_ranking_ids.index(x.id))
-        return most_popular_products
+        serializer = ProductSerializer(most_popular_products, many=True)
+        if serializer.data is None:
+            return JsonResponse({'success': False, 'error': 'No products found'}, status=http_status.HTTP_404_NOT_FOUND)
+        return Response(serializer.data, status=http_status.HTTP_200_OK)
 
 
 class BuyerBackend:
@@ -742,7 +747,7 @@ class ManagerBackend(CouponBackend):
         return Response(serializer.data)
 
     @staticmethod
-    def change_orders_state(request, sender):
+    def change_orders_state(request, sender, *args, **kwargs):
         """
         Метод для изменения состояния заказа.
 

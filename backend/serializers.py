@@ -80,6 +80,12 @@ class ProductItemSerializer(serializers.ModelSerializer):
         read_only_fields = ['id']
         not_required_fields = ['preview']
 
+    def validate(self, attrs):
+        if attrs['quantity'] < 0:
+            raise serializers.ValidationError("Количество должно быть больше нуля")
+        if attrs['price'] < 0 or attrs['price_retail'] < 0:
+            raise serializers.ValidationError("Цена не может быть отрицательной")
+
 
 class OrderItemSerializer(serializers.ModelSerializer):
 
@@ -114,7 +120,7 @@ class OrderItemCreateSerializer(OrderItemSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     ordered_items = OrderItemCreateSerializer(many=True, read_only=True)
     contact = ContactSerializer(read_only=True)
-    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True, min_value=0)
 
     class Meta:
         model = Order
@@ -162,7 +168,7 @@ class ShopProductSerializer(serializers.Serializer):
     category = serializers.IntegerField()
     name = serializers.CharField()
     price = serializers.DecimalField(max_digits=10, decimal_places=2)
-    price_retail = serializers.DecimalField(amax_digits=10, decimal_places=2, allow_null=True)
+    price_retail = serializers.DecimalField(max_digits=10, decimal_places=2, allow_null=True)
     quantity = serializers.IntegerField()
     properties = serializers.DictField(allow_null=True)
 

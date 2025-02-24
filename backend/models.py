@@ -139,7 +139,7 @@ class Category(models.Model):
     """
     objects = models.manager.Manager()
 
-    name = models.CharField(max_length=80, verbose_name='Название категории')
+    name = models.CharField(max_length=80, unique=True, verbose_name='Название категории')
     shops = models.ManyToManyField(Shop, blank=True, related_name='categories', verbose_name='Магазины')
 
     def __str__(self):
@@ -163,7 +163,7 @@ class Product(models.Model):
     """
     objects = models.manager.Manager()
 
-    name = models.CharField(max_length=100, verbose_name='Название продукта')
+    name = models.CharField(max_length=100, unique=True, verbose_name='Название продукта')
     category = models.ForeignKey(Category, on_delete=models.CASCADE, related_name='products')
 
     def __str__(self):
@@ -198,9 +198,10 @@ class ProductItem(models.Model):
                                            verbose_name='Количество')
     preview = models.ImageField(upload_to="images/%Y/%m/%d", blank=True, null=True,
                                 verbose_name='Превью')
-    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Цена продукта')
+    price = models.DecimalField(max_digits=10, decimal_places=2, verbose_name='Цена продукта',
+                                validators=[MinValueValidator(Decimal('0.00'))])
     price_retail = models.DecimalField(max_digits=10, decimal_places=2, blank=True, null=True,
-                                       verbose_name='Розничная цена продукта')
+                                       validators=[MinValueValidator(Decimal('0.00'))], verbose_name='Розничная цена продукта')
 
     class Meta:
         verbose_name = 'Описание продукта'
