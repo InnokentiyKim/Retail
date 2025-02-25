@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from django.utils import timezone
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty, OrderStateChoices
 from backend.models import User, Shop, Category, Product, Coupon
@@ -83,7 +85,7 @@ class ProductItemSerializer(serializers.ModelSerializer):
     def validate(self, attrs):
         if attrs['quantity'] < 0:
             raise serializers.ValidationError("Количество должно быть больше нуля")
-        if attrs['price'] < 0 or attrs['price_retail'] < 0:
+        if attrs['price'] < Decimal('0.00') or attrs['price_retail'] < Decimal('0.00'):
             raise serializers.ValidationError("Цена не может быть отрицательной")
 
 
@@ -120,7 +122,7 @@ class OrderItemCreateSerializer(OrderItemSerializer):
 class OrderSerializer(serializers.ModelSerializer):
     ordered_items = OrderItemCreateSerializer(many=True, read_only=True)
     contact = ContactSerializer(read_only=True)
-    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True, min_value=0)
+    total_price = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True, min_value=Decimal('0.00'))
 
     class Meta:
         model = Order
@@ -178,12 +180,12 @@ class ShopProductSerializer(serializers.Serializer):
         return value
 
     def validate_price(self, value):
-        if value < 0 or value > 100000000:
+        if value < Decimal('0.00') or value > Decimal('10000000'):
             raise serializers.ValidationError("Цена не может быть ниже 0 или превышать 10 000 000")
         return value
 
     def validate_price_retail(self, value):
-        if value < 0.0 or value > 100000000:
+        if value < Decimal('0.00') or value > Decimal('10000000'):
             raise serializers.ValidationError("Розничная цена не может быть ниже 0 или превышать 10 000 000")
         return value
 

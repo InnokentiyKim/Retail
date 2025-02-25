@@ -4,6 +4,8 @@ from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.request import Request
+from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from django_rest_passwordreset.views import reset_password_request_token, reset_password_confirm
 from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend, ManagerBackend
 from .filters import ProductItemFilter
 from .models import Shop, Category
@@ -18,6 +20,8 @@ class AccountRegisterView(APIView):
     """
     Представление для регистрации нового пользователя
     """
+
+    @extend_schema(**APIConfig.user_register_config())
     def post(self, request: Request):
         return UserBackend.register_account(request)
 
@@ -26,8 +30,28 @@ class AccountConfirmView(APIView):
     """
     Представление для подтверждения аккаунта по токену
     """
+
+    @extend_schema(**APIConfig.confirm_user_account_config())
     def post(self, request):
         return UserBackend.confirm_account(request)
+
+class AccountResetPasswordView(APIView):
+    """
+    Представление для сброса пароля
+    """
+
+    @extend_schema(**APIConfig.reset_password_config())
+    def post(self, request):
+        return reset_password_request_token(request)
+
+class AccountResetPasswordConfirmView(APIView):
+    """
+    Представление для подтверждения сброса пароля
+    """
+
+    @extend_schema(**APIConfig.confirm_reset_password_config())
+    def post(self, request):
+        return reset_password_confirm(request)
 
 
 class AccountView(APIView):
@@ -44,6 +68,30 @@ class AccountView(APIView):
     @extend_schema(**APIConfig.change_users_account_config())
     def post(self, request):
         return UserBackend.change_account_info(request)
+
+
+class TokenObtain(TokenObtainPairView):
+    """
+    Представление для получения JWT-токена
+    Параметры: email(str) и password(str)
+    Возращает: access(str) и refresh(str)
+    """
+
+    @extend_schema(**APIConfig.token_obtain_config())
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
+
+
+class TokenRefresh(TokenRefreshView):
+    """
+    Представление для обновления JWT-токена
+    Параметры: refresh(str)
+    Возращает: access(str) и refresh(str)
+    """
+
+    @extend_schema(**APIConfig.token_refresh_config())
+    def post(self, request, *args, **kwargs):
+        return super().post(request, *args, **kwargs)
 
 
 class SellerGoodsView(APIView):

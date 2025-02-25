@@ -359,7 +359,7 @@ class Order(models.Model):
     def total_price(self):
         if self.coupon and self.coupon.is_valid():
             return Decimal(1 - self.coupon.discount / 100) * sum(item.get_cost() for item in self.ordered_items.all())
-        return sum(item.get_cost() for item in self.ordered_items.all())
+        return Decimal(sum(item.get_cost() for item in self.ordered_items.all()))
 
     def is_valid(self):
         if not self.ordered_items.all():

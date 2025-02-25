@@ -1,9 +1,102 @@
-from drf_spectacular.utils import extend_schema_field, OpenApiResponse
+from rest_framework import serializers
+from drf_spectacular.utils import OpenApiResponse, OpenApiParameter
 from backend.serializers import CategorySerializer, OrderSerializer, OrderConfirmSerializer, \
-    OrderItemCreateUpdateSerializer, OrderItemSerializer, OrderItemUpdateSerializer, OrderItemDeleteSerializer, \
+    OrderItemCreateUpdateSerializer, OrderItemUpdateSerializer, OrderItemDeleteSerializer, \
     CouponSerializer, ObjectIDSerializer, OrderStateSerializer, ProductItemSerializer, ProductSerializer, \
     ShopSerializer, UserSerializer, ContactSerializer
 from rest_framework import status
+
+
+
+class APIRequestSchema:
+    class ImportGoods(serializers.Serializer):
+        url = serializers.URLField()
+
+    class ChangeSellerStatus(serializers.Serializer):
+        is_active = serializers.BooleanField()
+
+    class ConfirmUserAccount(serializers.Serializer):
+        email = serializers.EmailField()
+        token = serializers.CharField(max_length=60)
+
+    class TokenObtain(serializers.Serializer):
+        email = serializers.EmailField()
+        password = serializers.CharField()
+
+    class TokenRefresh(serializers.Serializer):
+        refresh = serializers.CharField()
+
+    class ResetPassword(serializers.Serializer):
+        email = serializers.EmailField()
+        password = serializers.CharField()
+
+
+class APIResponseSchema:
+
+    class Response200(serializers.Serializer):
+        success = serializers.BooleanField(default=True)
+
+    class Response201(serializers.Serializer):
+        success = serializers.BooleanField(default=True)
+
+    class Response204(serializers.Serializer):
+        success = serializers.BooleanField(default=True)
+
+    class Response400(serializers.Serializer):
+        success = serializers.BooleanField(default=False)
+        error = serializers.JSONField(default=dict)
+
+    class Response401(serializers.Serializer):
+        success = serializers.BooleanField(default=False)
+        error = serializers.JSONField(default=dict)
+
+    class Response404(serializers.Serializer):
+        success = serializers.BooleanField(default=False)
+        error = serializers.JSONField(default=dict)
+
+    class Response409(serializers.Serializer):
+        success = serializers.BooleanField(default=False)
+        error = serializers.JSONField(default=dict)
+
+    class TokenObtain(serializers.Serializer):
+        access = serializers.CharField()
+        refresh = serializers.CharField()
+
+    @staticmethod
+    def create_response_list():
+        return {
+            status.HTTP_201_CREATED: OpenApiResponse(response=APIResponseSchema.Response201, description="Created"),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=APIResponseSchema.Response400, description="Bad request"),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response=APIResponseSchema.Response401, description="Unauthorized"),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(response=APIResponseSchema.Response404, description="Not found"),
+            status.HTTP_409_CONFLICT: OpenApiResponse(response=APIResponseSchema.Response409, description="Conflict")
+        }
+
+    @staticmethod
+    def get_response_list(response_serializer, use_auth=True):
+        response_list = {
+            status.HTTP_200_OK: OpenApiResponse(response=response_serializer, description="OK"),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=APIResponseSchema.Response400, description="Bad request"),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response=APIResponseSchema.Response401, description="Unauthorized"),
+            status.HTTP_404_NOT_FOUND: OpenApiResponse(response=APIResponseSchema.Response404, description="Not found"),
+        }
+        if use_auth is False:
+            response_list.pop(status.HTTP_401_UNAUTHORIZED)
+        return response_list
+
+    @staticmethod
+    def update_response_list():
+        return APIResponseSchema.create_response_list()
+
+    @staticmethod
+    def delete_response_list():
+        return {
+            status.HTTP_204_NO_CONTENT: OpenApiResponse(response=APIResponseSchema.Response204, description="No content"),
+            status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=APIResponseSchema.Response400, description="Bad request"),
+            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response=APIResponseSchema.Response401, description="Unauthorized"),
+            status.HTTP_409_CONFLICT: OpenApiResponse(response=APIResponseSchema.Response409, description="Conflict")
+        }
+
 
 
 class APIConfig:
@@ -18,34 +111,11 @@ class APIConfig:
             "deprecated": False,
             "filters": True,
             "parameters": [
-                {
-                    "name": "filter",
-                    "in": "query",
-                    "description": "Фильтр по id или названию",
-                    "required": False,
-                    "type": "string"
-                },
-                {
-                    "name": "search",
-                    "in": "query",
-                    "description": "Поиск по названию",
-                    "required": False,
-                    "type": "string"
-                },
-                {
-                    "name": "ordering",
-                    "in": "query",
-                    "description": "Сортировка по id или названию",
-                    "required": False,
-                    "type": "string"
-                }
+                OpenApiParameter(name="filter", type=str, location=OpenApiParameter.QUERY, required=False, description="Фильтр по id или названию"),
+                OpenApiParameter(name="search", type=str, location=OpenApiParameter.QUERY, required=False, description="Поиск по названию"),
+                OpenApiParameter(name="ordering", type=str, location=OpenApiParameter.QUERY, required=False, description="Сортировка по id или названию")
             ],
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response=CategorySerializer, description="OK"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-                }
+            "responses": APIResponseSchema.get_response_list(CategorySerializer, use_auth=False)
         }
 
     @staticmethod
@@ -56,31 +126,20 @@ class APIConfig:
             "tags": ["Покупатель"],
             "operation_id": "get_buyer_orders",
             "deprecated": False,
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response=OrderSerializer, description="OK"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-                }
+            "responses": APIResponseSchema.get_response_list(OrderSerializer)
         }
 
     @staticmethod
     def confirm_buyer_order_config():
         return {
-            "description": "Подтверждение заказа покупателя",
+            "description": "Подтверждение заказа покупателя. В теле запроса передается id заказа, id контакта и код купона (опционально)",
             "summary": "Подтверждение заказа покупателя",
             "tags": ["Покупатель"],
             "operation_id": "confirm_buyer_order",
             "deprecated": False,
+            "parameters": None,
             "request": OrderConfirmSerializer,
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response=OrderConfirmSerializer, description="OK"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found"),
-                    status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Order already confirmed")
-                }
+            "responses": APIResponseSchema.create_response_list()
         }
 
     @staticmethod
@@ -91,12 +150,7 @@ class APIConfig:
             "tags": ["Покупатель"],
             "operation_id": "get_shopping_cart",
             "deprecated": False,
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response=OrderSerializer, description="OK"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found"),
-                }
+            "responses": APIResponseSchema.get_response_list(OrderSerializer)
         }
 
     @staticmethod
@@ -108,14 +162,7 @@ class APIConfig:
             "operation_id": "create_shopping_cart",
             "deprecated": False,
             "request": OrderItemCreateUpdateSerializer(many=True),
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found"),
-                    status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-                }
+            "responses": APIResponseSchema.create_response_list()
         }
 
     @staticmethod
@@ -127,13 +174,7 @@ class APIConfig:
             "operation_id": "update_shopping_cart",
             "deprecated": False,
             "request": OrderItemUpdateSerializer(many=True),
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-                }
+            "responses": APIResponseSchema.update_response_list()
         }
 
     @staticmethod
@@ -142,16 +183,10 @@ class APIConfig:
             "description": "Удаление товаров из корзины покупателя",
             "summary": "Удаление товаров из корзины покупателя",
             "tags": ["Покупатель"],
-            "operation_id": "update_shopping_cart",
+            "operation_id": "delete_shopping_cart",
             "deprecated": False,
             "request": OrderItemDeleteSerializer(many=True),
-            "responses":
-                {
-                    status.HTTP_204_NO_CONTENT: OpenApiResponse(response={}, description="No content"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-                }
+            "responses": APIResponseSchema.delete_response_list()
         }
 
     @staticmethod
@@ -162,11 +197,7 @@ class APIConfig:
             "tags": ["Менеджер"],
             "operation_id": "get_coupons",
             "deprecated": False,
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response=CouponSerializer, description="OK"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized")
-                }
+            "responses": APIResponseSchema.get_response_list(CouponSerializer)
         }
 
     @staticmethod
@@ -178,13 +209,7 @@ class APIConfig:
             "operation_id": "create_coupon",
             "deprecated": False,
             "request": CouponSerializer,
-            "responses":
-                {
-                    status.HTTP_201_CREATED: OpenApiResponse(response={}, description="Created"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-                }
+            "responses": APIResponseSchema.create_response_list()
         }
 
     @staticmethod
@@ -196,13 +221,7 @@ class APIConfig:
             "operation_id": "update_coupon",
             "deprecated": False,
             "request": CouponSerializer,
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-                }
+            "responses": APIResponseSchema.update_response_list()
         }
 
     @staticmethod
@@ -214,14 +233,7 @@ class APIConfig:
             "operation_id": "delete_coupon",
             "deprecated": False,
             "request": ObjectIDSerializer,
-            "responses":
-                {
-                    status.HTTP_204_NO_CONTENT: OpenApiResponse(response={}, description="No content"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found"),
-                    status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-                }
+            "responses": APIResponseSchema.delete_response_list()
         }
 
     @staticmethod
@@ -232,12 +244,7 @@ class APIConfig:
             "tags": ["Менеджер"],
             "operation_id": "get_manager_orders",
             "deprecated": False,
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response=OrderSerializer, description="OK"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-                }
+            "responses": APIResponseSchema.get_response_list(OrderSerializer)
         }
 
     @staticmethod
@@ -249,13 +256,7 @@ class APIConfig:
             "operation_id": "update_manager_order",
             "deprecated": False,
             "request": OrderStateSerializer,
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-                }
+            "responses": APIResponseSchema.update_response_list()
         }
 
     @staticmethod
@@ -268,33 +269,14 @@ class APIConfig:
             "deprecated": False,
             "filters": True,
             "parameters": [
-                {
-                    "name": "filter",
-                    "in": "query",
-                    "description": "Фильтр по id магазина или категории товаров",
-                    "required": False,
-                    "type": "string"
-                },
-                {
-                    "name": "search",
-                    "in": "query",
-                    "description": "Поиск по названию",
-                    "required": False,
-                    "type": "string"
-                },
-                {
-                    "name": "ordering",
-                    "in": "query",
-                    "description": "Сортировка по id, названию товара, магазина или цене",
-                    "required": False,
-                    "type": "string"
-                }
+                OpenApiParameter(name="filter", type=str, location='query', required=False,
+                                 description="Фильтр по id магазина или категории товаров"),
+                OpenApiParameter(name="search", type=str, location='query', required=False,
+                                 description="Поиск по названию"),
+                OpenApiParameter(name="ordering", type=str, location='query', required=False,
+                                 description="Сортировка по id, названию товара, магазина или цене")
             ],
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response=ProductItemSerializer, description="OK"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-                }
+            "responses": APIResponseSchema.get_response_list(ProductItemSerializer, use_auth=False)
         }
 
     @staticmethod
@@ -306,19 +288,10 @@ class APIConfig:
             "operation_id": "get_popular_products",
             "deprecated": False,
             "parameters": [
-                {
-                    "name": "amount",
-                    "in": "query",
-                    "description": "Количество популярных товаров",
-                    "required": False,
-                    "type": "integer"
-                },
+                OpenApiParameter(name="amount", type=int, location='query', required=False,
+                                 description="Количество популярных товаров")
             ],
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response=ProductSerializer(many=True), description="OK"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-                }
+            "responses": APIResponseSchema.get_response_list(ProductSerializer, use_auth=False)
         }
 
     @staticmethod
@@ -329,24 +302,8 @@ class APIConfig:
             "tags": ["Продавец"],
             "operation_id": "import_seller_products",
             "deprecated": False,
-            "request": {
-                "required": True,
-                "description": "Ссылка на YAML-файл",
-                "schema": {
-                    "type": "string",
-                    "format": "url",
-                    "description": "Ссылка на YAML-файл",
-                    "example": "https://example.com/products.yaml"
-                }
-            },
-            "responses":
-                {
-                    status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                    status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                    status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                    status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found"),
-                    status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-                }
+            "request": APIRequestSchema.ImportGoods,
+            "responses": APIResponseSchema.get_response_list(APIResponseSchema.Response200)
         }
 
     @staticmethod
@@ -357,12 +314,7 @@ class APIConfig:
             "tags": ["Продавец"],
             "operation_id": "get_seller_orders",
             "deprecated": False,
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response=OrderSerializer(many=True), description="OK"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-            }
+            "responses": APIResponseSchema.get_response_list(OrderSerializer)
         }
 
     @staticmethod
@@ -374,13 +326,7 @@ class APIConfig:
             "operation_id": "create_shop",
             "deprecated": False,
             "request": ShopSerializer,
-            "responses":
-            {
-                status.HTTP_201_CREATED: OpenApiResponse(response={}, description="Created"),
-                status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-            }
+            "responses": APIResponseSchema.create_response_list()
         }
 
     @staticmethod
@@ -391,12 +337,7 @@ class APIConfig:
             "tags": ["Продавец"],
             "operation_id": "get_seller_status",
             "deprecated": False,
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response=ShopSerializer, description="OK"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-            }
+            "responses": APIResponseSchema.get_response_list(ShopSerializer)
         }
 
     @staticmethod
@@ -407,19 +348,8 @@ class APIConfig:
             "tags": ["Продавец"],
             "operation_id": "change_seller_status",
             "deprecated": False,
-            "request": {
-                "schema": {
-                    "type": "boolean",
-                    "parameters": ["is_active"]
-                }
-            },
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-            }
+            "request": APIRequestSchema.ChangeSellerStatus,
+            "responses": APIResponseSchema.update_response_list()
         }
 
     @staticmethod
@@ -430,12 +360,7 @@ class APIConfig:
             "tags": ["Магазины"],
             "operation_id": "get_shops",
             "deprecated": False,
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response=ShopSerializer, description="OK"),
-                status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-            }
+            "responses": APIResponseSchema.get_response_list(ShopSerializer)
         }
 
     @staticmethod
@@ -446,12 +371,7 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "get_users_account",
             "deprecated": False,
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response=UserSerializer, description="OK"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-            }
+            "responses": APIResponseSchema.get_response_list(UserSerializer)
         }
 
     @staticmethod
@@ -463,13 +383,7 @@ class APIConfig:
             "operation_id": "change_users_account",
             "deprecated": False,
             "request": UserSerializer,
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-            }
+            "responses": APIResponseSchema.update_response_list()
         }
 
     @staticmethod
@@ -480,12 +394,7 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "get_сontact",
             "deprecated": False,
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response=ContactSerializer, description="OK"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-            }
+            "responses": APIResponseSchema.get_response_list(ContactSerializer)
         }
 
     @staticmethod
@@ -497,12 +406,7 @@ class APIConfig:
             "operation_id": "create_сontact",
             "deprecated": False,
             "request": ContactSerializer,
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized")
-            }
+            "responses": APIResponseSchema.create_response_list()
         }
 
     @staticmethod
@@ -514,13 +418,7 @@ class APIConfig:
             "operation_id": "update_сontact",
             "deprecated": False,
             "request": ContactSerializer,
-            "responses":
-            {
-                status.HTTP_200_OK: OpenApiResponse(response={}, description="OK"),
-                status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_404_NOT_FOUND: OpenApiResponse(response={}, description="Not found")
-            }
+            "responses": APIResponseSchema.update_response_list()
         }
 
     @staticmethod
@@ -532,11 +430,77 @@ class APIConfig:
             "operation_id": "delete_сontact",
             "deprecated": False,
             "request": ObjectIDSerializer,
-            "responses":
-            {
-                status.HTTP_204_NO_CONTENT: OpenApiResponse(response={}, description="No content"),
-                status.HTTP_400_BAD_REQUEST: OpenApiResponse(response={}, description="Bad request"),
-                status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response={}, description="Unauthorized"),
-                status.HTTP_409_CONFLICT: OpenApiResponse(response={}, description="Conflict")
-            }
+            "responses": APIResponseSchema.delete_response_list()
+        }
+
+    @staticmethod
+    def user_register_config():
+        return {
+            "description": "Регистрация нового пользователя",
+            "summary": "Регистрация нового пользователя",
+            "tags": ["Пользователи"],
+            "operation_id": "user_register",
+            "deprecated": False,
+            "request": UserSerializer,
+            "responses": APIResponseSchema.create_response_list()
+        }
+
+    @staticmethod
+    def confirm_user_account_config():
+        return {
+            "description": "Подтверждение аккаунта пользователя",
+            "summary": "Подтверждение аккаунта пользователя",
+            "tags": ["Пользователи"],
+            "operation_id": "confirm_user_account",
+            "deprecated": False,
+            "request": APIRequestSchema.ConfirmUserAccount,
+            "responses": APIResponseSchema.update_response_list()
+        }
+
+    @staticmethod
+    def token_obtain_config():
+        return {
+            "description": "Получение пары access/refresh токенов",
+            "summary": "Получение токена доступа",
+            "tags": ["Пользователи"],
+            "operation_id": "token_obtain",
+            "deprecated": False,
+            "request": APIRequestSchema.TokenObtain,
+            "responses": APIResponseSchema.get_response_list(APIResponseSchema.TokenObtain)
+        }
+
+    @staticmethod
+    def token_refresh_config():
+        return {
+            "description": "Повторное получение пары access/refresh токенов",
+            "summary": "Повторное получение токена доступа",
+            "tags": ["Пользователи"],
+            "operation_id": "token_refresh",
+            "deprecated": False,
+            "request": APIRequestSchema.TokenRefresh,
+            "responses": APIResponseSchema.get_response_list(APIResponseSchema.TokenObtain)
+        }
+
+    @staticmethod
+    def reset_password_config():
+        return {
+            "description": "Сброс пароля пользователя",
+            "summary": "Сброс пароля пользователя",
+            "tags": ["Пользователи"],
+            "operation_id": "reset_password",
+            "deprecated": False,
+            "request": APIRequestSchema.ResetPassword,
+            "responses": APIResponseSchema.update_response_list()
+        }
+
+    @staticmethod
+    def confirm_reset_password_config():
+        return {
+            "description": "Подтверждение сброса пароля пользователя",
+            "summary": "Подтверждение сброса пароля пользователя",
+            "tags": ["Пользователи"],
+            "operation_id": "confirm_reset_password",
+            "deprecated": False,
+            "request": APIRequestSchema.ConfirmUserAccount,
+            "responses": APIResponseSchema.update_response_list()
         }
