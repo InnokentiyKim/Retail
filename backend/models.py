@@ -270,16 +270,16 @@ class Contact(models.Model):
     """
     objects = models.manager.Manager()
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contacts', blank=True, null=True,
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='contacts', blank=True, null=False,
                              verbose_name='Пользователь')
-    phone  = models.CharField(max_length=20, blank=True, verbose_name='Номер телефона')
+    phone  = models.CharField(max_length=20, blank=True, null=False, verbose_name='Номер телефона')
     country = models.CharField(max_length=30, blank=True, null=True, verbose_name='Страна')
-    city = models.CharField(max_length=50, blank=True, verbose_name='Город')
-    street = models.CharField(max_length=60, blank=True, verbose_name='Улица')
-    house = models.CharField(max_length=20, blank=True, verbose_name='Номер дома')
+    city = models.CharField(max_length=50, blank=True, null=False, verbose_name='Город')
+    street = models.CharField(max_length=60, blank=True, null=False, verbose_name='Улица')
+    house = models.CharField(max_length=20, blank=True, null=False, verbose_name='Номер дома')
     structure = models.CharField(max_length=20, blank=True, null=True, verbose_name='Корпус')
     building = models.CharField(max_length=20, blank=True, null=True, verbose_name='Строение')
-    apartment = models.CharField(max_length=20, blank=True, verbose_name='Квартира')
+    apartment = models.CharField(max_length=20, blank=True, null=False, verbose_name='Квартира')
 
     def __str__(self):
         return f"{self.user.email} - {self.phone}"

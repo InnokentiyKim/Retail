@@ -19,6 +19,7 @@ from django.urls import path
 from django.urls.conf import include
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
+
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/v1/', include('backend.urls'), name='backend'),

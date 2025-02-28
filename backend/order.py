@@ -19,7 +19,7 @@ def update_ordered_items_quantity(order: Order) -> bool:
     products_to_update = []
     for ordered_item in order.ordered_items.all():
         updated_quantity = ordered_item.product_item.quantity
-        if order.state == OrderStateChoices.CONFIRMED:
+        if order.state == OrderStateChoices.CREATED:
             updated_quantity -= ordered_item.quantity
         elif order.state == OrderStateChoices.CANCELED:
             updated_quantity += ordered_item.quantity
@@ -46,10 +46,11 @@ def create_order_report(order_obj: Order) -> str | None:
     """
     try:
         filename = f"order_{order_obj.id}.pdf"
-        doc = canvas.Canvas(filename, pagesize=letter)
-        doc.setFont("Tahoma", 12)
-        doc.drawString(1 * inch, 12 * inch, "Order #{}".format(getattr(order_obj, "id")))
-        doc.drawString(1 * inch, 18 * inch, "Date: {}".format(getattr(order_obj, "created_at")))
+        path = f"data/{filename}"
+        doc = canvas.Canvas(path, pagesize=letter)
+        doc.setFont("Helvetica", 12)
+        doc.drawString(4 * inch, 10 * inch, f"Order #{order_obj.id}")
+        doc.drawString(5 * inch, 9.5 * inch, f"Date: {order_obj.created_at}")
         table_data = [
             ["Product", "Price", "Quantity", "Cost"],
         ]
@@ -60,23 +61,31 @@ def create_order_report(order_obj: Order) -> str | None:
                 item.quantity,
                 item.get_cost()]
             )
-        table_data.append(["Total", "", "", order_obj.total_price])
+        table_data.append(["Total price with discount", "", "", round(order_obj.total_price, 2)])
         table = Table(table_data, style=[
-            ('GRID', (0, 0), (-1, -1), 0.5, "black"),
+            ('GRID', (0, 0), (-1, -1), 0.3, "black"),
             ('BOX', (0, 0), (-1, -1), 0, "black"),
-            ('FONT', (0, 0), (-1, -1), "Tahoma", 12),
+            ('FONT', (0, 0), (-1, -1), "Helvetica", 11),
             ('ALIGN', (0, 0), (-1, -1), "CENTER"),
             ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
-            ('FONTSIZE', (0, 0), (-1, -1), 12),
+            ('FONTSIZE', (0, 0), (-1, -1), 11),
         ])
         table.setStyle([
-            ('FONTNAME', (0, 0), (-1, 0), "Tahoma-Bold"),
-            ('FONTNAME', (0, -1), (-1, -1), "Tahoma-Bold"),
+            ('FONTNAME', (0, 0), (-1, 0), "Helvetica-Bold"),
+            ('FONTNAME', (0, -1), (-1, -1), "Helvetica-Bold"),
+            ('GRID', (0, -1), (-1, -1), 0, (255, 255, 255)),
         ])
-        table.wrapOn(doc, 1 * inch, 1 * inch)
-        table.drawOn(doc, 1 * inch, 10 * inch)
+        table.wrapOn(doc, 0.5 * inch, 8 * inch)
+        table.drawOn(doc, 0.5 * inch, 8 * inch)
         doc.save()
+        return path
     except Exception as err:
         return None
-    else:
-        return filename
+
+
+def get_mail_attachment(file_path) -> bytes | None:
+    try:
+        with open(file_path, 'rb') as f:
+            return f.read()
+    except Exception:
+        return None

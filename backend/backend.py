@@ -10,13 +10,14 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 from .models import EmailTokenConfirm, Shop, ProductItem, Order, \
     OrderStateChoices, OrderItem, Contact, Coupon, Product
-from .order import create_order_report, update_ordered_items_quantity
+from .order import create_order_report, update_ordered_items_quantity, get_mail_attachment
 from .serializers import UserSerializer, ShopSerializer, OrderSerializer, OrderItemSerializer, ContactSerializer, \
     ProductItemSerializer, CouponSerializer, OrderItemUpdateSerializer, OrderItemCreateUpdateSerializer, \
-    OrderItemDeleteSerializer, ObjectIDSerializer, OrderStateSerializer, OrderConfirmSerializer, ProductSerializer
+    OrderItemDeleteSerializer, OrderStateSerializer, OrderConfirmSerializer, ProductSerializer, \
+    ContactUpdateSerializer, ContactDeleteSerializer, CouponDeleteSerializer, CouponCreateSerializer
 from rest_framework import status as http_status
 from django.core.validators import URLValidator
-from django.core.exceptions import ValidationError, ObjectDoesNotExist
+from django.core.exceptions import ValidationError
 from .signals import new_order
 from .tasks import import_goods
 
@@ -161,7 +162,10 @@ class SellerBackend:
             validate_url(url)
         except ValidationError as error:
             return JsonResponse({'success': False, 'error': str(error)}, status=http_status.HTTP_400_BAD_REQUEST)
-        import_goods.delay(url, user_id)
+        shop = Shop.objects.filter(user_id=user_id).first()
+        if shop is None:
+            return JsonResponse({'success': False, 'error': 'Shop not found'}, status=http_status.HTTP_404_NOT_FOUND)
+        import_goods.delay(url, shop.id, user_id)
         return JsonResponse({'success': True, 'message': 'Import started'}, status=http_status.HTTP_200_OK)
 
 
@@ -275,8 +279,8 @@ class ProductsBackend:
         cache_key = 'all_products'
         products = cache.get(cache_key)
         if not products:
-            products = ProductItem.objects.filter(shop__is_active=True, quantity__gt=0).prefetch_related(
-                'shop', 'product__category', 'product__name').distinct()
+            products = ProductItem.objects.filter(shop__is_active=True, quantity__gt=0).select_related(
+                'shop', 'product').distinct()
             if products is None:
                 return JsonResponse({'success': False, 'error': 'No products found'}, status=http_status.HTTP_404_NOT_FOUND)
             cache.set(cache_key, products, 60 * 5)
@@ -360,23 +364,24 @@ class BuyerBackend:
                 - Если данные о товарах невалидны, возвращает ошибку со статусом HTTP 400.
                 - Если возникает конфликт при сохранении товара, возвращает ошибку со статусом HTTP 409.
         """
-        items_serializer = OrderItemCreateUpdateSerializer(request.data.get('items'), many=True)
-        adding_items_dict = {}
+        items_serializer = OrderItemCreateUpdateSerializer(data=request.data, many=True)
+        adding_items_list = []
         if items_serializer.is_valid():
-            adding_items_dict = items_serializer.validated_data
+            adding_items_list = items_serializer.validated_data
         else:
-            JsonResponse({'success': False, 'error': items_serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+            JsonResponse({'success': False, 'error': str(items_serializer.errors)}, status=http_status.HTTP_400_BAD_REQUEST)
         cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.PREPARING)
-        for item in adding_items_dict:
-            item.update({'order_id': cart.id})
-            serializer = OrderItemSerializer(item)
+        for item in adding_items_list:
+            item.update({'order': cart.id})
+            serializer = OrderItemSerializer(data=item)
             if serializer.is_valid():
                 try:
                     serializer.save()
                 except IntegrityError as err:
                     return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
             else:
-                return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+                JsonResponse({'success': False, 'error': str(items_serializer.errors)},
+                             status=http_status.HTTP_400_BAD_REQUEST)
         return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
 
     @staticmethod
@@ -394,13 +399,13 @@ class BuyerBackend:
                 - Если данные о товарах невалидны, возвращает ошибку со статусом HTTP 400.
                 - Если не удалось обновить товар в БД, возвращает ошибку со статусом HTTP 409.
         """
-        serializer = OrderItemUpdateSerializer(request.data.get('items'), many=True)
+        serializer = OrderItemUpdateSerializer(data=request.data, many=True)
         if serializer.is_valid():
-            updating_items_dict = serializer.validated_data
+            updating_items_list = serializer.validated_data
         else:
             return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
         cart, _ = Order.objects.get_or_create(user_id=request.user.id, state=OrderStateChoices.PREPARING)
-        for item in updating_items_dict:
+        for item in updating_items_list:
             try:
                 OrderItem.objects.filter(order_id=cart.id, id=item['id']).update(quantity=item['quantity'])
             except IntegrityError as err:
@@ -423,22 +428,25 @@ class BuyerBackend:
                     - Если корзина не найдена, возвращает ошибку со статусом HTTP 404.
                     - Если возникает конфликт при удалении товара из БД, возвращает ошибку со статусом HTTP 409.
             """
-        serializer = OrderItemDeleteSerializer(request.data.get('items'), many=True)
+        serializer = OrderItemDeleteSerializer(data=request.data)
         if serializer.is_valid():
-            deleting_items_dict = serializer.validated_data
+            deleting_items_list = serializer.validated_data['items']
         else:
             return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
         cart = Order.objects.filter(user_id=request.user.id, state=OrderStateChoices.PREPARING).first()
         if cart is None:
             return JsonResponse({'success': False, 'error': 'No order found'}, status=http_status.HTTP_404_NOT_FOUND)
         query = Q()
-        for item in deleting_items_dict:
-            query |= Q(order_id=cart.id, id=item['id'])
+        for item_id in deleting_items_list:
+            query |= Q(order_id=cart.id, id=item_id)
         try:
-            OrderItem.objects.filter(query).delete()
+            deleted_items_count = OrderItem.objects.filter(query).delete()[0]
         except IntegrityError as err:
             return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
-        return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
+        if deleted_items_count > 0:
+            return JsonResponse({'success': True, 'message': f'Deleted {deleted_items_count} item(s)'},
+                                status=http_status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'success': False, 'error': 'No items found to delete'}, status=http_status.HTTP_404_NOT_FOUND)
 
     @staticmethod
     def get_orders(request):
@@ -491,17 +499,18 @@ class BuyerBackend:
         serializer = OrderConfirmSerializer(data=request.data)
         if not serializer.is_valid():
             return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        order = Order.objects.get(user_id=request.user.id, id=request.data['id']).first()
-        if order is None:
-            return JsonResponse({'success': False, 'error': 'Order not found'}, status=http_status.HTTP_404_NOT_FOUND)
-        if not order.is_valid():
-            return JsonResponse({'success': False, 'error': 'Products quantity is not enough or order is empty'},
-                                status=http_status.HTTP_400_BAD_REQUEST)
-        contact_id = request.data['contact']
+        order_id = serializer.validated_data.get('id')
+        contact_id = serializer.validated_data.get('contact')
+        order = Order.objects.filter(user_id=request.user.id, id=order_id, state=OrderStateChoices.PREPARING).first()
         contact = Contact.objects.filter(user_id=request.user.id, id=contact_id).first()
-        if contact is None:
-            return JsonResponse({'success': False, 'error': 'Contact not found'}, status=http_status.HTTP_404_NOT_FOUND)
-        coupon_code = request.data.get('coupon_code')
+        if order is None or contact is None:
+            return JsonResponse({'success': False, 'error': 'Active shopping cart or contact not found'},
+                                status=http_status.HTTP_404_NOT_FOUND)
+        if not order.is_valid():
+            return JsonResponse(
+                {'success': False, 'error': 'Shops product quantity is not enough to confirm your order or order is empty'},
+                status=http_status.HTTP_400_BAD_REQUEST)
+        coupon_code = serializer.validated_data.get('coupon_code')
         if coupon_code:
             coupon = Coupon.objects.filter(code__exact=coupon_code).first()
             if coupon is None or not coupon.is_valid():
@@ -517,8 +526,9 @@ class BuyerBackend:
         update_ordered_items_quantity(order)
         product_ids = [item.product_item.product_id for item in order.ordered_items.all()]
         ProductsBackend.update_product_ranking(product_ids)
-        report_filename = create_order_report(order)
-        new_order.send(sender=sender, user_id=request.user.id, order_state=order.state, report=report_filename)
+        report_path = create_order_report(order)
+        attachment = get_mail_attachment(report_path)
+        new_order.send(sender=sender, user_id=request.user.id, order_id=order.id, order_state=order.state, report_file=attachment)
         return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
 
 
@@ -582,10 +592,10 @@ class ContactBackend:
                 - Если данные о контакте невалидны, возвращает ошибку со статусом HTTP 400.
                 - Если контакт не найден, возвращает ошибку со статусом HTTP 404.
         """
-        request_data = ObjectIDSerializer(request.data)
-        if not request_data.is_valid():
-            return JsonResponse({'success': False, 'error': request_data.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        contact = Contact.objects.filter(id=request.data['id'], user_id=request.user.id).first()
+        request_serializer = ContactUpdateSerializer(data=request.data)
+        if not request_serializer.is_valid():
+            return JsonResponse({'success': False, 'error': request_serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+        contact = Contact.objects.filter(id=request_serializer.validated_data['id'], user_id=request.user.id).first()
         if contact is None:
             return JsonResponse({'success': False}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = ContactSerializer(contact, data=request.data, partial=True)
@@ -596,34 +606,32 @@ class ContactBackend:
             return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
 
     @staticmethod
-    def delete_contact(request):
+    def delete_contact(request, *args, **kwargs):
         """
         Метод для удаления контактов пользователя.
 
         Параметры:
-            request (Request): Объект запроса, содержащий список контактов для удаления:
-                - items (dict): Список контактов для удаления.
+            - items(list[int]) - список ID контактов для удаления.
         Возвращает:
             JsonResponse: JSON-ответ, содержащий результат операции.
                 - Если контакты успешно удалены, возвращает {'success': True} со статусом HTTP 204.
                 - Если данные о контактах невалидны или список контактов пуст, возвращает ошибку со статусом HTTP 400.
-                - Если возникает конфликт при удалении контактов, возвращает ошибку со статусом HTTP 409.
+                - Если переданные контакты не найдены, то возвращает ошибку со статусом HTTP 404.
         """
-        serializer = ObjectIDSerializer(request.data.get('items'), many=True)
+        serializer = ContactDeleteSerializer(data=request.data)
         if serializer.is_valid():
-            deleting_items_dict = serializer.validated_data
+            deleting_items_list = serializer.validated_data.get('items')
         else:
             return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        if deleting_items_dict:
+        if deleting_items_list:
             query = Q()
-            for item in deleting_items_dict:
-                query |= Q(user_id=request.user.id, id=item['id'])
-            try:
-                Contact.objects.filter(query).delete()
-                return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
-            except IntegrityError as err:
-                return JsonResponse({'success': False}, status=http_status.HTTP_409_CONFLICT)
-        return JsonResponse({'success': False, 'error': 'No deleting items found'}, status=http_status.HTTP_400_BAD_REQUEST)
+            for item_id in deleting_items_list:
+                query |= Q(user_id=request.user.id, id=item_id)
+            deleted_contacts_count = Contact.objects.filter(query).delete()[0]
+            if deleted_contacts_count > 0:
+                return JsonResponse({'success': True, "message": f"deleted {deleted_contacts_count} item(s)"},
+                                    status=http_status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'success': False, 'error': 'No items found to delete'}, status=http_status.HTTP_404_NOT_FOUND)
 
 
 class CouponBackend:
@@ -683,45 +691,49 @@ class CouponBackend:
                 - Если данные о купоне невалидны, возвращает ошибку со статусом HTTP 400.
                 - Если купон не найден, возвращает ошибку со статусом HTTP 404.
         """
-        request_data = ObjectIDSerializer(request.data)
-        if not request_data.is_valid():
-            return JsonResponse({'success': False, 'error': request_data.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        coupon = Coupon.objects.filter(id=request.data['id']).first()
+        request_serializer = CouponCreateSerializer(data=request.data, partial=True)
+        if request_serializer.is_valid():
+            validated_data = request_serializer.validated_data
+        else:
+            return JsonResponse({'success': False, 'error': str(request_serializer.errors)},
+                                status=http_status.HTTP_400_BAD_REQUEST)
+        coupon = Coupon.objects.filter(id=validated_data.get('id')).first()
         if coupon is None:
-            return JsonResponse({'success': False}, status=http_status.HTTP_404_NOT_FOUND)
-        serializer = CouponSerializer(coupon, data=request.data, partial=True)
+            return JsonResponse({'success': False, 'error': 'Coupon not found'}, status=http_status.HTTP_404_NOT_FOUND)
+        serializer = CouponSerializer(coupon, data=validated_data, partial=True)
         if serializer.is_valid():
             serializer.save()
             return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
         else:
-            return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+            return JsonResponse({'success': False, 'error': str(serializer.errors)}, status=http_status.HTTP_409_CONFLICT)
 
     @staticmethod
-    def delete_coupon(request):
+    def delete_coupon(request, *args, **kwargs):
         """
         Удаляет существующий купон.
 
         Параметры:
-            request (Request): Объект запроса, содержащий данные о купоне.
-                - id (str): Идентификатор купона.
+            - <coupon_id> (int): Идентификатор купона. Параметр пути запроса.
         Возвращает:
             JsonResponse: JSON-ответ, содержащий результат операции.
                 - Если купон успешно удален, возвращает {'success': True} со статусом HTTP 204.
-                - Если данные о купоне невалидны, возвращает ошибку со статусом HTTP 400.
                 - Если купон не найден, возвращает ошибку со статусом HTTP 404.
                 - Если возникает конфликт при удалении купона, возвращает ошибку со статусом HTTP 409.
         """
-        request_data = ObjectIDSerializer(request.data)
-        if not request_data.is_valid():
-            return JsonResponse({'success': False, 'error': request_data.errors}, status=http_status.HTTP_400_BAD_REQUEST)
-        try:
-            Coupon.objects.filter(id=request.data['id']).delete()
-            return JsonResponse({'success': True}, status=http_status.HTTP_204_NO_CONTENT)
-        except ObjectDoesNotExist as err:
-            return JsonResponse({'error': str(err)}, status=http_status.HTTP_404_NOT_FOUND)
-        except IntegrityError as err:
-            return JsonResponse({'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
-
+        serializer = CouponDeleteSerializer(data=request.data)
+        if not serializer.is_valid():
+            return JsonResponse({'success': False, 'error': str(serializer.errors)}, status=http_status.HTTP_400_BAD_REQUEST)
+        deleting_items_list = serializer.validated_data.get('items')
+        if deleting_items_list:
+            query = Q()
+            for item_id in deleting_items_list:
+                query |= Q(id=item_id)
+            deleted_coupons_count = Coupon.objects.filter(query).delete()[0]
+            if deleted_coupons_count > 0:
+                return JsonResponse({'success': True, 'message': f'Deleted {deleted_coupons_count} item(s)'},
+                                    status=http_status.HTTP_204_NO_CONTENT)
+        return JsonResponse({'success': False, 'error': 'No items found to delete'},
+                            status=http_status.HTTP_400_BAD_REQUEST)
 
 class ManagerBackend(CouponBackend):
     @staticmethod
@@ -770,10 +782,10 @@ class ManagerBackend(CouponBackend):
             order.state = request.data['state']
             try:
                 order.save()
-                new_order.send(sender=sender, user_id=order.user_id, order_state=order.state)
+                new_order.send(sender=sender, user_id=order.user_id, order_id=order.id, order_state=order.state)
                 if order.state == OrderStateChoices.CANCELED:
                     update_ordered_items_quantity(order)
                 return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
             except IntegrityError as err:
                 return JsonResponse({'success': False, 'error': str(err)}, status=http_status.HTTP_409_CONFLICT)
-        return JsonResponse({'success': False}, status=http_status.HTTP_400_BAD_REQUEST)
+        return JsonResponse({'success': False, 'error': str(serializer.errors)}, status=http_status.HTTP_400_BAD_REQUEST)

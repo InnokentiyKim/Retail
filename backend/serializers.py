@@ -6,9 +6,6 @@ from backend.models import User, Shop, Category, Product, Coupon
 from rest_framework import serializers
 
 
-class ObjectIDSerializer(serializers.Serializer):
-    id = serializers.IntegerField(min_value=0, allow_null=False)
-
 
 class ContactSerializer(serializers.ModelSerializer):
     class Meta:
@@ -22,6 +19,37 @@ class ContactSerializer(serializers.ModelSerializer):
             'building': {'required': False},
         }
 
+class ContactCreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = ['phone', 'country', 'city', 'street', 'house', 'apartment', 'structure', 'building']
+        extra_kwargs = {
+            'country': {'required': False},
+            'structure': {'required': False},
+            'building': {'required': False},
+        }
+
+class ContactUpdateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Contact
+        fields = ['id', 'phone', 'country', 'city', 'street', 'house', 'apartment', 'structure', 'building']
+        extra_kwargs = {
+            'id': {'read_only': False, 'required': True},
+            'phone': {'required': False},
+            'country': {'required': False},
+            'city': {'required': False},
+            'street': {'required': False},
+            'house': {'required': False},
+            'apartment': {'required': False},
+            'structure': {'required': False},
+            'building': {'required': False},
+        }
+
+
+class ContactDeleteSerializer(serializers.Serializer):
+    items = serializers.ListField(child=serializers.IntegerField(min_value=0, allow_null=False, required=True),
+                                  read_only=False, required=True)
+
 
 class UserSerializer(serializers.ModelSerializer):
     contacts = ContactSerializer(many=True, read_only=True)
@@ -30,6 +58,13 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username', 'email', 'first_name', 'last_name', 'type', 'contacts']
         read_only_fields = ['id']
+
+
+class UserCreateSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = User
+        fields = ['username', 'email', 'password', 'first_name', 'last_name', 'type']
 
 
 class ShopSerializer(serializers.ModelSerializer):
@@ -106,13 +141,13 @@ class OrderItemUpdateSerializer(serializers.Serializer):
 
 
 class OrderItemCreateUpdateSerializer(serializers.Serializer):
-    id = serializers.IntegerField(min_value=0, allow_null=False)
-    quantity = serializers.IntegerField(min_value=1, max_value=10000, allow_null=False)
-    product_item = serializers.IntegerField(min_value=0, allow_null=False)
+    quantity = serializers.IntegerField(min_value=1, max_value=10000, allow_null=False, default=1)
+    product_item = serializers.IntegerField(min_value=0, allow_null=False, required=True)
 
 
 class OrderItemDeleteSerializer(serializers.Serializer):
-    id = serializers.IntegerField(min_value=0, allow_null=False)
+    items = serializers.ListField(child=serializers.IntegerField(min_value=0, allow_null=False, required=True),
+                                  read_only=False, required=True)
 
 
 class OrderItemCreateSerializer(OrderItemSerializer):
@@ -146,18 +181,33 @@ class CouponSerializer(serializers.ModelSerializer):
         model = Coupon
         fields = ['id', 'code', 'valid_from', 'valid_to', 'discount', 'active']
         read_only_fields = ['id']
+        extra_kwargs = {
+            'valid_from': {'required': False},
+            'valid_to': {'required': False}
+        }
 
     def validate(self, attrs):
-        if attrs['valid_from'] > attrs['valid_to']:
+        if 'valid_from' in attrs and 'valid_to' in attrs and attrs['valid_from'] > attrs['valid_to']:
             raise serializers.ValidationError("Дата начала скидки не может быть позже даты окончания действия купона")
-        if attrs['valid_from'] < timezone.now():
+        if 'valid_from' in attrs and attrs['valid_from'] < timezone.now():
             raise serializers.ValidationError("Дата начала скидки не может быть раньше текущей даты")
-        if attrs['valid_to'] < timezone.now():
+        if 'valid_to' in attrs and attrs['valid_to'] < timezone.now():
             raise serializers.ValidationError("Дата окончания действия купона не может быть раньше текущей даты")
-        if attrs['discount'] < 0 or attrs['discount'] > 100:
+        if 'discount' in attrs and (attrs['discount'] < 0 or attrs['discount'] > 100):
             raise serializers.ValidationError("Скидка не может быть ниже 0 или превышать 100")
         return attrs
 
+class CouponCreateSerializer(CouponSerializer):
+    id = serializers.IntegerField(min_value=0, required=True, read_only=False, allow_null=False)
+    extra_kwargs = {
+        'valid_from': {'required': False},
+        'valid_to': {'required': False}
+    }
+
+
+class CouponDeleteSerializer(serializers.Serializer):
+    items = serializers.ListField(child=serializers.IntegerField(min_value=0, allow_null=False, required=True),
+                                  read_only=False, required=True)
 
 
 class ShopCategorySerializer(serializers.Serializer):

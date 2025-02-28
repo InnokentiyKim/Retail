@@ -14,6 +14,7 @@ import os
 from pathlib import Path
 from datetime import timedelta
 
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -98,7 +99,7 @@ REDIS_CACHE_PORT = os.getenv('REDIS_CACHE_PORT', '6379')
 REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
-REDIS_PORT = os.getenv('REDIS_PORT', '6380')
+REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_DB = os.getenv('REDIS_DB', '0')
 
 
@@ -157,18 +158,20 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 AUTH_USER_MODEL = 'backend.User'
 
 
-EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+# EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.console.EmailBackend')
+EMAIL_BACKEND = os.getenv('EMAIL_BACKEND', 'django.core.mail.backends.smtp.EmailBackend')
 
-EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.yandex.ru')
-EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'kiminnokentiy@yandex.ru')
-EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', 'secret')
-EMAIL_PORT = os.getenv('EMAIL_PORT', 465)
-EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', True)
-EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', False)
+EMAIL_HOST = os.getenv('EMAIL_HOST', 'smtp.gmail.com')
+EMAIL_HOST_USER = os.getenv('EMAIL_HOST_USER', 'innokentiykim90@gmail.com')
+EMAIL_HOST_PASSWORD = os.getenv('EMAIL_HOST_PASSWORD', '')
+EMAIL_PORT = os.getenv('EMAIL_PORT', '587')
+EMAIL_USE_SSL = os.getenv('EMAIL_USE_SSL', False)
+EMAIL_USE_TLS = os.getenv('EMAIL_USE_TLS', True)
 SERVER_EMAIL = EMAIL_HOST_USER
 
 
 CELERY_BROKER_URL = os.getenv('CELERY_BROKER_URL', 'amqp://guest:guest@localhost:5672/')
+CELERY_RESULT_BACKEND = os.getenv('CELERY_RESULT_BACKEND', 'redis://localhost:6379/1')
 CELERY_BROKER_CONNECTION_RETRY_ON_STARTUP = True
 CELERY_ACCEPT_CONTENT = ['application/json']
 CELERY_TASK_SERIALIZER = 'json'
@@ -203,7 +206,7 @@ SPECTACULAR_SETTINGS = {
     'TITLE': 'Online Market',
     'DESCRIPTION': 'Online Market for sellers and buyers',
     'VERSION': '1.0.0',
-    'SERVE_INCLUDE_SCHEMA': False,
+    'SERVE_INCLUDE_SCHEMA': False
 }
 
 

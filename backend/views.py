@@ -5,10 +5,10 @@ from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.request import Request
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
-from django_rest_passwordreset.views import reset_password_request_token, reset_password_confirm
+from django_rest_passwordreset.views import ResetPasswordRequestToken, ResetPasswordConfirm
 from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend, ManagerBackend
 from .filters import ProductItemFilter
-from .models import Shop, Category
+from .models import Shop, Category, ProductItem
 from .permissions import IsSeller, IsBuyer
 from .serializers import CategorySerializer, ShopSerializer
 from django_filters.rest_framework import DjangoFilterBackend
@@ -35,23 +35,23 @@ class AccountConfirmView(APIView):
     def post(self, request):
         return UserBackend.confirm_account(request)
 
-class AccountResetPasswordView(APIView):
+class AccountResetPasswordView(ResetPasswordRequestToken):
     """
     Представление для сброса пароля
     """
 
     @extend_schema(**APIConfig.reset_password_config())
     def post(self, request):
-        return reset_password_request_token(request)
+        return super().post(request)
 
-class AccountResetPasswordConfirmView(APIView):
+class AccountResetPasswordConfirmView(ResetPasswordConfirm):
     """
     Представление для подтверждения сброса пароля
     """
 
     @extend_schema(**APIConfig.confirm_reset_password_config())
     def post(self, request):
-        return reset_password_confirm(request)
+        return super().post(request)
 
 
 class AccountView(APIView):
@@ -184,6 +184,7 @@ class ProductItemView(APIView):
     permission_classes = (AllowAny,)
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductItemFilter
+    queryset = ProductItem.objects.none()
 
     @extend_schema(**APIConfig.get_products_config())
     def get(self, request, *args, **kwargs):
@@ -291,9 +292,10 @@ class ContactView(APIView):
     @extend_schema(**APIConfig.delete_contact_config())
     def delete(self, request, *args, **kwargs):
         """
-        Удаление контакта
+        Удаление контакта пользователя
+        Параметр: <contact_id> - ID контакта для удаления (параметр пути).
         """
-        return ContactBackend.delete_contact(request)
+        return ContactBackend.delete_contact(request, *args, **kwargs)
 
 
 class BuyerOrdersView(APIView):
@@ -350,8 +352,9 @@ class CouponView(APIView):
     def delete(self, request, *args, **kwargs):
         """
         Удаление купона
+        Параметр: items (list[int]) - список ID купонов для удаления
         """
-        return ManagerBackend.delete_coupon(request)
+        return ManagerBackend.delete_coupon(request, *args, **kwargs)
 
 
 class ManagerOrdersView(APIView):

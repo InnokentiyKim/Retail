@@ -5,6 +5,8 @@ from backend.views import AccountRegisterView, AccountConfirmView, AccountView, 
     TokenObtain, TokenRefresh, AccountResetPasswordView, AccountResetPasswordConfirmView
 
 app_name = 'backend'
+
+
 urlpatterns = [
     path('user/register', AccountRegisterView.as_view(), name='user-register'),
     path('user/register/confirm', AccountConfirmView.as_view(), name='user-register-confirm'),

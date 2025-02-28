@@ -19,7 +19,7 @@ def password_reset_token_created(sender, instance, reset_password_token, *args, 
     """
     subject = "Password Reset Token"
     body = reset_password_token.key
-    to_email = [reset_password_token.email]
+    to_email = [reset_password_token.user.email]
     send_email(subject, body, FROM_EMAIL, to_email)
 
 
@@ -37,7 +37,7 @@ def new_user_registered_signal(sender: Type[User], instance: User, created: bool
 
 
 @receiver(new_order)
-def new_order_signal(user_id, order_state, report=None, **kwargs):
+def new_order_signal(user_id, order_id, order_state, report_file=None, **kwargs):
     """
     Сигнал для отправки уведомления о статусе заказа
     """
@@ -45,18 +45,18 @@ def new_order_signal(user_id, order_state, report=None, **kwargs):
     if user is not None:
         subject = "Обновление статуса заказа"
         to_email = [user.email]
-        body = "Ваш заказ"
+        body = f"Ваш заказ #{order_id}"
         if order_state == OrderStateChoices.CREATED:
-            body = "Ваш заказ сформирован"
+            body = f"Ваш заказ #{order_id} сформирован"
         if order_state == OrderStateChoices.CONFIRMED:
-            body = "Ваш заказ подтвержден. Спасибо за покупку!"
+            body = f"Ваш заказ #{order_id} подтвержден. Спасибо за покупку!"
         if order_state == OrderStateChoices.ASSEMBLED:
-            body = "Ваш заказ собран"
+            body = f"Ваш заказ #{order_id} собран"
         if order_state == OrderStateChoices.DELIVERED:
-            body = "Ваш заказ доставлен"
+            body = f"Ваш заказ #{order_id} доставлен"
         if order_state == OrderStateChoices.CANCELED:
-            body = "Ваш заказ отменен"
-        if report is not None:
-            send_email.delay(subject, body, FROM_EMAIL, to_email, attachments=report)
+            body = f"Ваш заказ #{order_id} отменен"
+        if report_file is not None:
+            send_email.delay(subject, body, FROM_EMAIL, to_email, report_file)
         else:
             send_email.delay(subject, body, FROM_EMAIL, to_email)

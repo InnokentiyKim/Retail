@@ -1,9 +1,11 @@
 from rest_framework import serializers
 from drf_spectacular.utils import OpenApiResponse, OpenApiParameter
-from backend.serializers import CategorySerializer, OrderSerializer, OrderConfirmSerializer, \
+from backend.serializers import OrderSerializer, OrderConfirmSerializer, \
     OrderItemCreateUpdateSerializer, OrderItemUpdateSerializer, OrderItemDeleteSerializer, \
-    CouponSerializer, ObjectIDSerializer, OrderStateSerializer, ProductItemSerializer, ProductSerializer, \
-    ShopSerializer, UserSerializer, ContactSerializer
+    CouponSerializer, OrderStateSerializer, ProductItemSerializer, ProductSerializer, \
+    ShopSerializer, UserSerializer, ContactSerializer, ContactUpdateSerializer, CategorySerializer, \
+    ContactDeleteSerializer, CouponDeleteSerializer, UserCreateSerializer, ContactCreateSerializer, \
+    CouponCreateSerializer
 from rest_framework import status
 
 
@@ -19,7 +21,7 @@ class APIRequestSchema:
         email = serializers.EmailField()
         token = serializers.CharField(max_length=60)
 
-    class TokenObtain(serializers.Serializer):
+    class TokenObtainRequest(serializers.Serializer):
         email = serializers.EmailField()
         password = serializers.CharField()
 
@@ -28,75 +30,64 @@ class APIRequestSchema:
 
     class ResetPassword(serializers.Serializer):
         email = serializers.EmailField()
+
+    class ConfirmResetPassword(serializers.Serializer):
         password = serializers.CharField()
+        token = serializers.CharField(max_length=60)
+
+
+
+class OKResponse(serializers.Serializer):
+    success = serializers.BooleanField(default=True)
+
+
+class ErrorResponse(serializers.Serializer):
+    success = serializers.BooleanField(default=False)
+    error = serializers.CharField()
 
 
 class APIResponseSchema:
 
-    class Response200(serializers.Serializer):
-        success = serializers.BooleanField(default=True)
+    @staticmethod
+    def get_response_object(error=False, error_msg='', serializer=None):
+        if error:
+            return ErrorResponse(error_msg)
+        if serializer:
+            return {status.HTTP_200_OK: serializer}
+        return OKResponse()
 
-    class Response201(serializers.Serializer):
-        success = serializers.BooleanField(default=True)
+    responses = {
+        200: {status.HTTP_200_OK: OpenApiResponse(response=get_response_object(), description="OK")},
+        201: {status.HTTP_201_CREATED: OpenApiResponse(response=get_response_object(), description="Created")},
+        204: {status.HTTP_204_NO_CONTENT: OpenApiResponse(response=get_response_object(), description="No content")},
+        400: {status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=get_response_object(
+            True, "Bad request"), description="Bad request")},
+        401: {status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response=get_response_object(
+            True, "Authentication credentials were not provided."), description="Unauthorized")},
+        403: {status.HTTP_403_FORBIDDEN: OpenApiResponse(response=get_response_object(
+            True, "Access denied"), description="Forbidden")},
+        404: {status.HTTP_404_NOT_FOUND: OpenApiResponse(response=get_response_object(
+            True, "Object not found"), description="Not found")},
+        409: {status.HTTP_409_CONFLICT: OpenApiResponse(response=get_response_object(
+            True, "Object saving error"), description="Conflict")},
+        429: {status.HTTP_429_TOO_MANY_REQUESTS: OpenApiResponse(response=get_response_object(
+            True, "Too many requests"), description="Too many requests")},
+        500: {status.HTTP_500_INTERNAL_SERVER_ERROR: OpenApiResponse(response=get_response_object(
+            True, "Server error"), description="Internal server error")}
+    }
 
-    class Response204(serializers.Serializer):
-        success = serializers.BooleanField(default=True)
-
-    class Response400(serializers.Serializer):
-        success = serializers.BooleanField(default=False)
-        error = serializers.JSONField(default=dict)
-
-    class Response401(serializers.Serializer):
-        success = serializers.BooleanField(default=False)
-        error = serializers.JSONField(default=dict)
-
-    class Response404(serializers.Serializer):
-        success = serializers.BooleanField(default=False)
-        error = serializers.JSONField(default=dict)
-
-    class Response409(serializers.Serializer):
-        success = serializers.BooleanField(default=False)
-        error = serializers.JSONField(default=dict)
-
-    class TokenObtain(serializers.Serializer):
+    class TokenObtainResponse(serializers.Serializer):
         access = serializers.CharField()
         refresh = serializers.CharField()
 
     @staticmethod
-    def create_response_list():
-        return {
-            status.HTTP_201_CREATED: OpenApiResponse(response=APIResponseSchema.Response201, description="Created"),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=APIResponseSchema.Response400, description="Bad request"),
-            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response=APIResponseSchema.Response401, description="Unauthorized"),
-            status.HTTP_404_NOT_FOUND: OpenApiResponse(response=APIResponseSchema.Response404, description="Not found"),
-            status.HTTP_409_CONFLICT: OpenApiResponse(response=APIResponseSchema.Response409, description="Conflict")
-        }
-
-    @staticmethod
-    def get_response_list(response_serializer, use_auth=True):
-        response_list = {
-            status.HTTP_200_OK: OpenApiResponse(response=response_serializer, description="OK"),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=APIResponseSchema.Response400, description="Bad request"),
-            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response=APIResponseSchema.Response401, description="Unauthorized"),
-            status.HTTP_404_NOT_FOUND: OpenApiResponse(response=APIResponseSchema.Response404, description="Not found"),
-        }
-        if use_auth is False:
-            response_list.pop(status.HTTP_401_UNAUTHORIZED)
+    def get_response_list(response_codes: list[int], responses_dict: dict, serializer=None) -> dict:
+        response_list = {}
+        for error_code in response_codes:
+            if error_code == 200 and serializer:
+                response_list.update(APIResponseSchema.get_response_object(serializer=serializer))
+            response_list.update(responses_dict.get(error_code))
         return response_list
-
-    @staticmethod
-    def update_response_list():
-        return APIResponseSchema.create_response_list()
-
-    @staticmethod
-    def delete_response_list():
-        return {
-            status.HTTP_204_NO_CONTENT: OpenApiResponse(response=APIResponseSchema.Response204, description="No content"),
-            status.HTTP_400_BAD_REQUEST: OpenApiResponse(response=APIResponseSchema.Response400, description="Bad request"),
-            status.HTTP_401_UNAUTHORIZED: OpenApiResponse(response=APIResponseSchema.Response401, description="Unauthorized"),
-            status.HTTP_409_CONFLICT: OpenApiResponse(response=APIResponseSchema.Response409, description="Conflict")
-        }
-
 
 
 class APIConfig:
@@ -115,7 +106,8 @@ class APIConfig:
                 OpenApiParameter(name="search", type=str, location=OpenApiParameter.QUERY, required=False, description="Поиск по названию"),
                 OpenApiParameter(name="ordering", type=str, location=OpenApiParameter.QUERY, required=False, description="Сортировка по id или названию")
             ],
-            "responses": APIResponseSchema.get_response_list(CategorySerializer, use_auth=False)
+            "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
+                                                             APIResponseSchema.responses, CategorySerializer)
         }
 
     @staticmethod
@@ -126,20 +118,23 @@ class APIConfig:
             "tags": ["Покупатель"],
             "operation_id": "get_buyer_orders",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(OrderSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses, OrderSerializer)
         }
 
     @staticmethod
     def confirm_buyer_order_config():
         return {
-            "description": "Подтверждение заказа покупателя. В теле запроса передается id заказа, id контакта и код купона (опционально)",
+            "description": "Подтверждение заказа покупателя. В теле запроса передается id заказа, id контакта и "
+                           "код купона (опционально)",
             "summary": "Подтверждение заказа покупателя",
             "tags": ["Покупатель"],
             "operation_id": "confirm_buyer_order",
             "deprecated": False,
             "parameters": None,
             "request": OrderConfirmSerializer,
-            "responses": APIResponseSchema.create_response_list()
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -150,7 +145,8 @@ class APIConfig:
             "tags": ["Покупатель"],
             "operation_id": "get_shopping_cart",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(OrderSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses, OrderSerializer)
         }
 
     @staticmethod
@@ -162,7 +158,8 @@ class APIConfig:
             "operation_id": "create_shopping_cart",
             "deprecated": False,
             "request": OrderItemCreateUpdateSerializer(many=True),
-            "responses": APIResponseSchema.create_response_list()
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -174,7 +171,8 @@ class APIConfig:
             "operation_id": "update_shopping_cart",
             "deprecated": False,
             "request": OrderItemUpdateSerializer(many=True),
-            "responses": APIResponseSchema.update_response_list()
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -186,7 +184,8 @@ class APIConfig:
             "operation_id": "delete_shopping_cart",
             "deprecated": False,
             "request": OrderItemDeleteSerializer(many=True),
-            "responses": APIResponseSchema.delete_response_list()
+            "responses": APIResponseSchema.get_response_list([204, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -197,7 +196,8 @@ class APIConfig:
             "tags": ["Менеджер"],
             "operation_id": "get_coupons",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(CouponSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses, CouponSerializer)
         }
 
     @staticmethod
@@ -209,7 +209,8 @@ class APIConfig:
             "operation_id": "create_coupon",
             "deprecated": False,
             "request": CouponSerializer,
-            "responses": APIResponseSchema.create_response_list()
+            "responses": APIResponseSchema.get_response_list([201, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -220,8 +221,9 @@ class APIConfig:
             "tags": ["Менеджер"],
             "operation_id": "update_coupon",
             "deprecated": False,
-            "request": CouponSerializer,
-            "responses": APIResponseSchema.update_response_list()
+            "request": CouponCreateSerializer,
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -232,8 +234,9 @@ class APIConfig:
             "tags": ["Менеджер"],
             "operation_id": "delete_coupon",
             "deprecated": False,
-            "request": ObjectIDSerializer,
-            "responses": APIResponseSchema.delete_response_list()
+            "request": CouponDeleteSerializer,
+            "responses": APIResponseSchema.get_response_list([204, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -244,7 +247,8 @@ class APIConfig:
             "tags": ["Менеджер"],
             "operation_id": "get_manager_orders",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(OrderSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses, OrderSerializer)
         }
 
     @staticmethod
@@ -256,7 +260,8 @@ class APIConfig:
             "operation_id": "update_manager_order",
             "deprecated": False,
             "request": OrderStateSerializer,
-            "responses": APIResponseSchema.update_response_list()
+            "responses": APIResponseSchema.get_response_list([200, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -276,7 +281,8 @@ class APIConfig:
                 OpenApiParameter(name="ordering", type=str, location='query', required=False,
                                  description="Сортировка по id, названию товара, магазина или цене")
             ],
-            "responses": APIResponseSchema.get_response_list(ProductItemSerializer, use_auth=False)
+            "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
+                                                             APIResponseSchema.responses, ProductItemSerializer)
         }
 
     @staticmethod
@@ -291,7 +297,8 @@ class APIConfig:
                 OpenApiParameter(name="amount", type=int, location='query', required=False,
                                  description="Количество популярных товаров")
             ],
-            "responses": APIResponseSchema.get_response_list(ProductSerializer, use_auth=False)
+            "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
+                                                             APIResponseSchema.responses, ProductSerializer)
         }
 
     @staticmethod
@@ -303,7 +310,8 @@ class APIConfig:
             "operation_id": "import_seller_products",
             "deprecated": False,
             "request": APIRequestSchema.ImportGoods,
-            "responses": APIResponseSchema.get_response_list(APIResponseSchema.Response200)
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -314,7 +322,8 @@ class APIConfig:
             "tags": ["Продавец"],
             "operation_id": "get_seller_orders",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(OrderSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses, OrderSerializer)
         }
 
     @staticmethod
@@ -326,7 +335,8 @@ class APIConfig:
             "operation_id": "create_shop",
             "deprecated": False,
             "request": ShopSerializer,
-            "responses": APIResponseSchema.create_response_list()
+            "responses": APIResponseSchema.get_response_list([201, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -337,7 +347,8 @@ class APIConfig:
             "tags": ["Продавец"],
             "operation_id": "get_seller_status",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(ShopSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses, ShopSerializer)
         }
 
     @staticmethod
@@ -349,7 +360,8 @@ class APIConfig:
             "operation_id": "change_seller_status",
             "deprecated": False,
             "request": APIRequestSchema.ChangeSellerStatus,
-            "responses": APIResponseSchema.update_response_list()
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -360,7 +372,8 @@ class APIConfig:
             "tags": ["Магазины"],
             "operation_id": "get_shops",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(ShopSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 400, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses, ShopSerializer)
         }
 
     @staticmethod
@@ -371,7 +384,8 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "get_users_account",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(UserSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 401, 404, 429, 500],
+                                                             APIResponseSchema.responses, UserSerializer)
         }
 
     @staticmethod
@@ -383,18 +397,20 @@ class APIConfig:
             "operation_id": "change_users_account",
             "deprecated": False,
             "request": UserSerializer,
-            "responses": APIResponseSchema.update_response_list()
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
     def get_contact_config():
         return {
-            "description": "Получить информацию о контакте пользователя",
-            "summary": "Получить информацию о контакте пользователя",
+            "description": "Получить информацию о контактах пользователя",
+            "summary": "Получить информацию о контактах пользователя",
             "tags": ["Пользователи"],
             "operation_id": "get_сontact",
             "deprecated": False,
-            "responses": APIResponseSchema.get_response_list(ContactSerializer)
+            "responses": APIResponseSchema.get_response_list([200, 401, 404, 429, 500],
+                                                             APIResponseSchema.responses, ContactSerializer)
         }
 
     @staticmethod
@@ -405,8 +421,9 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "create_сontact",
             "deprecated": False,
-            "request": ContactSerializer,
-            "responses": APIResponseSchema.create_response_list()
+            "request": ContactCreateSerializer,
+            "responses": APIResponseSchema.get_response_list([201, 400, 401, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -417,8 +434,9 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "update_сontact",
             "deprecated": False,
-            "request": ContactSerializer,
-            "responses": APIResponseSchema.update_response_list()
+            "request": ContactUpdateSerializer,
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 403, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -429,8 +447,9 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "delete_сontact",
             "deprecated": False,
-            "request": ObjectIDSerializer,
-            "responses": APIResponseSchema.delete_response_list()
+            "request": ContactDeleteSerializer,
+            "responses": APIResponseSchema.get_response_list([204, 400, 401, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -441,8 +460,9 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "user_register",
             "deprecated": False,
-            "request": UserSerializer,
-            "responses": APIResponseSchema.create_response_list()
+            "request": UserCreateSerializer,
+            "responses": APIResponseSchema.get_response_list([201, 400, 401, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -454,7 +474,8 @@ class APIConfig:
             "operation_id": "confirm_user_account",
             "deprecated": False,
             "request": APIRequestSchema.ConfirmUserAccount,
-            "responses": APIResponseSchema.update_response_list()
+            "responses": APIResponseSchema.get_response_list([200, 400, 401, 404, 409, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -465,8 +486,9 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "token_obtain",
             "deprecated": False,
-            "request": APIRequestSchema.TokenObtain,
-            "responses": APIResponseSchema.get_response_list(APIResponseSchema.TokenObtain)
+            "request": APIRequestSchema.TokenObtainRequest,
+            "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
+                                                             APIResponseSchema.responses, APIResponseSchema.TokenObtainResponse)
         }
 
     @staticmethod
@@ -478,7 +500,8 @@ class APIConfig:
             "operation_id": "token_refresh",
             "deprecated": False,
             "request": APIRequestSchema.TokenRefresh,
-            "responses": APIResponseSchema.get_response_list(APIResponseSchema.TokenObtain)
+            "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
+                                                             APIResponseSchema.responses, APIResponseSchema.TokenObtainResponse)
         }
 
     @staticmethod
@@ -490,7 +513,8 @@ class APIConfig:
             "operation_id": "reset_password",
             "deprecated": False,
             "request": APIRequestSchema.ResetPassword,
-            "responses": APIResponseSchema.update_response_list()
+            "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
+                                                             APIResponseSchema.responses)
         }
 
     @staticmethod
@@ -501,6 +525,7 @@ class APIConfig:
             "tags": ["Пользователи"],
             "operation_id": "confirm_reset_password",
             "deprecated": False,
-            "request": APIRequestSchema.ConfirmUserAccount,
-            "responses": APIResponseSchema.update_response_list()
+            "request": APIRequestSchema.ConfirmResetPassword,
+            "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
+                                                             APIResponseSchema.responses)
         }

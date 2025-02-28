@@ -1,5 +1,6 @@
 import csv
 import os.path
+from email.mime.application import MIMEApplication
 from typing import Any
 from django.db import IntegrityError
 import yaml
@@ -7,14 +8,12 @@ import datetime
 from celery import shared_task
 from django.core.mail import EmailMultiAlternatives
 from django.http import HttpResponse
-from django.http import JsonResponse
-from rest_framework import status as http_status
 from backend.models import Shop, Category, Product, ProductItem, Property, ProductProperty
 from backend.serializers import ShopGoodsImportSerializer
 
 
 @shared_task
-def send_email(subject: str, message: str, from_email: str, to_email: list[str], attachment: str|Any=None):
+def send_email(subject: str, message: str, from_email: str, to_email: list[str], attached_file: bytes|Any=None):
     """
     Задача Celery для отправки письма по email
 
@@ -23,17 +22,18 @@ def send_email(subject: str, message: str, from_email: str, to_email: list[str],
         - message (str): Текст сообщения
         - from_email (str): Адрес отправителя
         - to_email (list[str]): Список адресов получателей
-        - attachment (str|Any): Путь к файлу вложения
+        - attachment (bytes|Any): Файл вложения (байтовый массив)
     """
-    if attachment is None:
-        msg = EmailMultiAlternatives(subject=subject, body=message, from_email=from_email, to=to_email)
-    else:
-        msg = EmailMultiAlternatives(subject=subject, body=message, from_email=from_email, to=to_email, attachments=attachment)
+    msg = EmailMultiAlternatives(subject=subject, body=message, from_email=from_email, to=to_email)
+    if attached_file is not None:
+        attachments = MIMEApplication(attached_file, 'pdf')
+        attachments.add_header('Content-Disposition', 'attachment', filename='report.pdf')
+        msg.attachments = [attachments]
     msg.send()
 
 
 @shared_task
-def import_goods(url: str, user_id: int):
+def import_goods(url: str, shop_id: int, user_id: int):
     """
     Задача Celery для импорта товаров из YAML-файла
 
@@ -41,9 +41,6 @@ def import_goods(url: str, user_id: int):
         - url (str): URL YAML-файла
         - user_id (int): Идентификатор пользователя
     """
-    shop = Shop.objects.filter(user_id=user_id).first()
-    if shop is None:
-        return JsonResponse({'success': False, 'error': 'No shop found'}, status=http_status.HTTP_404_NOT_FOUND)
     # stream = requests.get(url).content
     path = os.path.join(os.path.dirname(__file__), 'shops_data.yaml')
     with open(path, 'rb') as file:
@@ -51,26 +48,28 @@ def import_goods(url: str, user_id: int):
     try:
         data = yaml.safe_load(stream)
     except Exception as err:
-        return JsonResponse({'success': False, 'error': err}, status=http_status.HTTP_400_BAD_REQUEST)
+        return {'success': False, 'error': str(err)}
     serializer = ShopGoodsImportSerializer(data=data)
     if serializer.is_valid():
         valid_data = serializer.validated_data
     else:
-        return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
+        return {'success': False, 'error': serializer.errors}
     for category in valid_data['categories']:
         try:
-            product_category, _ = Category.objects.get_or_create(id=category['id'])
-            product_category.shops.add(shop)
+            product_category = Category.objects.filter(id=category['id']).first()
+            if not product_category:
+                product_category = Category.objects.create(name=category['name'])
+            product_category.shops.add(shop_id)
             product_category.save()
         except IntegrityError as err:
-            return JsonResponse({'success': False, 'error': err}, status=http_status.HTTP_409_CONFLICT)
+            return {'success': False, 'error': str(err)}
     for item in valid_data['goods']:
         try:
             product, created = Product.objects.get_or_create(name=item['name'], category_id=item['category'])
             product_item = ProductItem.objects.create(
                 product_id=product.id,
                 article_id=item['article_id'],
-                shop_id=shop.id,
+                shop_id=shop_id,
                 price=item['price'],
                 price_retail=item['price_retail'],
                 quantity=item['quantity']
@@ -83,8 +82,8 @@ def import_goods(url: str, user_id: int):
                     value=value
                 )
         except IntegrityError as err:
-            return JsonResponse({'success': False, 'error': err}, status=http_status.HTTP_409_CONFLICT)
-    return JsonResponse({'success': True}, status=http_status.HTTP_200_OK)
+            return {'success': False, 'error': str(err)}
+    return {'success': True}
 
 
 @shared_task
