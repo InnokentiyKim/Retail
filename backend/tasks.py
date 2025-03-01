@@ -1,14 +1,11 @@
-import csv
 import os.path
 from email.mime.application import MIMEApplication
 from typing import Any
 from django.db import IntegrityError
 import yaml
-import datetime
 from celery import shared_task
 from django.core.mail import EmailMultiAlternatives
-from django.http import HttpResponse
-from backend.models import Shop, Category, Product, ProductItem, Property, ProductProperty
+from backend.models import Category, Product, ProductItem, Property, ProductProperty
 from backend.serializers import ShopGoodsImportSerializer
 
 
@@ -84,29 +81,3 @@ def import_goods(url: str, shop_id: int, user_id: int):
         except IntegrityError as err:
             return {'success': False, 'error': str(err)}
     return {'success': True}
-
-
-@shared_task
-def export_to_csv(options, queryset):
-    """
-    Задача Celery для экспорта данных в CSV-файл
-
-    Параметры:
-        - options (Any): Метаданные модели
-        - queryset (QuerySet): Запрос на выборку
-    """
-    content_disposition = f"attachment; filename={options.verbose_name}.csv"
-    response = HttpResponse(content_type="text/csv")
-    response['Content-Disposition'] = content_disposition
-    writer = csv.writer(response)
-    fields = [field for field in options.get_fields() if not field.many_to_many and not field.one_to_many]
-    writer.writerow([field.verbose_name for field in fields])
-    for item in queryset:
-        data_row = []
-        for field in fields:
-            value = getattr(item, field.name)
-            if isinstance(value, datetime.datetime):
-                value = value.strftime("%Y-%m-%d")
-            data_row.append(value)
-        writer.writerow(data_row)
-    return response

@@ -79,10 +79,11 @@ def obtain_users_credentials(user_factory, email='user@mail.ru', password='secre
 
 
 @pytest.fixture
-def order_items_factory(user_factory):
+def make_shops_with_products_factory(user_factory):
     def factory(*args, **kwargs):
-        user = user_factory(type=UserTypeChoices.SELLER, _quantity=1)
-        shop = baker.make('Shop', user=user, _quantity=1)
+        sellers = user_factory(type=UserTypeChoices.SELLER, _quantity=10)
+        for seller in sellers:
+            baker.make('Shop', user=seller, _quantity=1)
         products = baker.make('Product', _quantity=5)
         product_items = [baker.make('ProductItem', shop=shop, product=product) for product in products]
         order_items = []

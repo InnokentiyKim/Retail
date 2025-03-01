@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from drf_spectacular.utils import OpenApiResponse, OpenApiParameter
+from drf_spectacular.utils import OpenApiResponse, OpenApiParameter, OpenApiTypes
 from backend.serializers import OrderSerializer, OrderConfirmSerializer, \
     OrderItemCreateUpdateSerializer, OrderItemUpdateSerializer, OrderItemDeleteSerializer, \
     CouponSerializer, OrderStateSerializer, ProductItemSerializer, ProductSerializer, \
@@ -52,7 +52,7 @@ class APIResponseSchema:
     def get_response_object(error=False, error_msg='', serializer=None):
         if error:
             return ErrorResponse(error_msg)
-        if serializer:
+        if serializer is not None:
             return {status.HTTP_200_OK: serializer}
         return OKResponse()
 
@@ -84,9 +84,10 @@ class APIResponseSchema:
     def get_response_list(response_codes: list[int], responses_dict: dict, serializer=None) -> dict:
         response_list = {}
         for error_code in response_codes:
-            if error_code == 200 and serializer:
+            if error_code == 200 and serializer is not None:
                 response_list.update(APIResponseSchema.get_response_object(serializer=serializer))
-            response_list.update(responses_dict.get(error_code))
+            else:
+                response_list.update(responses_dict.get(error_code))
         return response_list
 
 
@@ -102,9 +103,12 @@ class APIConfig:
             "deprecated": False,
             "filters": True,
             "parameters": [
-                OpenApiParameter(name="filter", type=str, location=OpenApiParameter.QUERY, required=False, description="Фильтр по id или названию"),
-                OpenApiParameter(name="search", type=str, location=OpenApiParameter.QUERY, required=False, description="Поиск по названию"),
-                OpenApiParameter(name="ordering", type=str, location=OpenApiParameter.QUERY, required=False, description="Сортировка по id или названию")
+                OpenApiParameter(name="id", type=OpenApiTypes.INT, location=OpenApiParameter.QUERY, required=False,
+                                 description="Фильтр по id категории"),
+                OpenApiParameter(name="search", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False,
+                                 description="Поиск по названию категории"),
+                OpenApiParameter(name="ordering", type=OpenApiTypes.STR, location=OpenApiParameter.QUERY, required=False,
+                                 description="Сортировка по id или name")
             ],
             "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
                                                              APIResponseSchema.responses, CategorySerializer)
@@ -274,12 +278,14 @@ class APIConfig:
             "deprecated": False,
             "filters": True,
             "parameters": [
-                OpenApiParameter(name="filter", type=str, location='query', required=False,
-                                 description="Фильтр по id магазина или категории товаров"),
-                OpenApiParameter(name="search", type=str, location='query', required=False,
-                                 description="Поиск по названию"),
-                OpenApiParameter(name="ordering", type=str, location='query', required=False,
-                                 description="Сортировка по id, названию товара, магазина или цене")
+                OpenApiParameter(name="shop_id", type=OpenApiTypes.INT, location='query', required=False,
+                                 description="Фильтр по id магазина"),
+                OpenApiParameter(name="category_id", type=OpenApiTypes.INT, location='query', required=False,
+                                 description="Фильтр по id категории товаров"),
+                OpenApiParameter(name="search", type=OpenApiTypes.STR, location='query', required=False,
+                                 description="Поиск по названию товара"),
+                OpenApiParameter(name="ordering", type=OpenApiTypes.STR, location='query', required=False,
+                                 description="Сортировка по id или price (цене)")
             ],
             "responses": APIResponseSchema.get_response_list([200, 400, 404, 429, 500],
                                                              APIResponseSchema.responses, ProductItemSerializer)
@@ -372,8 +378,28 @@ class APIConfig:
             "tags": ["Магазины"],
             "operation_id": "get_shops",
             "deprecated": False,
+            "parameters": [
+                OpenApiParameter(name="id", type=OpenApiTypes.INT, location='query', required=False,
+                                 description="Фильтр по id магазина"),
+                OpenApiParameter(name="search", type=OpenApiTypes.STR, location='query', required=False,
+                                 description="Поиск по названию магазина"),
+                OpenApiParameter(name="ordering", type=OpenApiTypes.STR, location='query', required=False,
+                                 description="Сортировка по id или name (названию магазина)")
+            ],
             "responses": APIResponseSchema.get_response_list([200, 400, 403, 404, 429, 500],
                                                              APIResponseSchema.responses, ShopSerializer)
+        }
+
+    @staticmethod
+    def get_seller_products_config():
+        return {
+            "description": "Получить список всех товаров магазина",
+            "summary": "Получить список всех товаров магазина",
+            "tags": ["Продавец"],
+            "operation_id": "get_seller_products",
+            "deprecated": False,
+            "responses": APIResponseSchema.get_response_list([200, 400, 403, 404, 429, 500],
+                                                             APIResponseSchema.responses, serializer=ProductItemSerializer)
         }
 
     @staticmethod

@@ -1,4 +1,7 @@
+import csv
+import datetime
 from django.db import IntegrityError
+from django.http.response import HttpResponse
 from reportlab.pdfgen import canvas
 from reportlab.lib.pagesizes import letter
 from reportlab.platypus import Table
@@ -89,3 +92,28 @@ def get_mail_attachment(file_path) -> bytes | None:
             return f.read()
     except Exception:
         return None
+
+
+def export_to_csv(options, queryset):
+    """
+    Функция административного интерфейса для экспорта данных в CSV-файл
+
+    Параметры:
+        - options (Any): Метаданные модели
+        - queryset (QuerySet): Запрос на выборку
+    """
+    content_disposition = f"attachment; filename={options.verbose_name}.csv"
+    response = HttpResponse(content_type="text/csv")
+    response['Content-Disposition'] = content_disposition
+    writer = csv.writer(response)
+    fields = [field for field in options.get_fields() if not field.many_to_many and not field.one_to_many]
+    writer.writerow([field.verbose_name for field in fields])
+    for item in queryset:
+        data_row = []
+        for field in fields:
+            value = getattr(item, field.name)
+            if isinstance(value, datetime.datetime):
+                value = value.strftime("%Y-%m-%d")
+            data_row.append(value)
+        writer.writerow(data_row)
+    return response

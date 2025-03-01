@@ -1,16 +1,18 @@
 from django.core.cache import cache
+from django.http.response import JsonResponse
 from drf_spectacular.utils import extend_schema
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.request import Request
+from rest_framework.renderers import JSONRenderer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django_rest_passwordreset.views import ResetPasswordRequestToken, ResetPasswordConfirm
 from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend, ManagerBackend
 from .filters import ProductItemFilter
 from .models import Shop, Category, ProductItem
 from .permissions import IsSeller, IsBuyer
-from .serializers import CategorySerializer, ShopSerializer
+from .serializers import CategorySerializer, ShopSerializer, ProductItemSerializer
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .api_config import APIConfig
@@ -116,7 +118,7 @@ class CategoriesView(ListAPIView):
     queryset = Category.objects.all()
     serializer_class = CategorySerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['id', 'name']
+    filterset_fields = ['id']
     search_fields = ['name']
     ordering_fields = ['id', 'name']
 
@@ -135,7 +137,7 @@ class ShopsView(ListAPIView):
     queryset = Shop.objects.filter(is_active=True)
     serializer_class = ShopSerializer
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
-    filterset_fields = ['id', 'name']
+    filterset_fields = ['id',]
     search_fields = ['name', 'description']
     ordering_fields = ['id', 'name']
 
@@ -144,10 +146,10 @@ class ShopsView(ListAPIView):
         """
         Функция для получения ключа кэша
         """
-        used_filters = request.GET.get('filters', '')
+        used_filter = request.GET.get('id', '')
         used_search = request.GET.get('search', '')
         used_ordering = request.GET.get('ordering', '')
-        return f'shops_{used_filters}_{used_search}_{used_ordering}'
+        return f'shops_{used_filter}_{used_search}_{used_ordering}'
 
     @extend_schema(**APIConfig.get_shops_config())
     def get(self, request, *args, **kwargs):
@@ -156,12 +158,12 @@ class ShopsView(ListAPIView):
         Метод использует кэширование результатов запроса
         """
         cache_key = self.get_cache_key(request, **kwargs)
-        result = cache.get(cache_key)
-        if not result:
-            result = super().get(request, *args, **kwargs)
-            if result is not None:
-                cache.set(cache_key, result.data, 60 * 10)
-        return result
+        response_data = cache.get(cache_key)
+        if response_data is None:
+            response_data = super().get(request, *args, **kwargs).data
+            if response_data is not None:
+                cache.set(cache_key, response_data, 60 * 10)
+        return JsonResponse(response_data)
 
 
 class SellerShopView(APIView):
@@ -176,19 +178,40 @@ class SellerShopView(APIView):
         return SellerBackend.create_shop(request)
 
 
-class ProductItemView(APIView):
+class ProductItemView(ListAPIView):
     """
     Представление для получения списка товаров
     Доступны фильтры, поиск и сортировка, указанные в GET-параметрах запроса
     """
     permission_classes = (AllowAny,)
+
+    serializer_class = ProductItemSerializer
+    queryset = ProductItem.objects.filter(shop__is_active=True, quantity__gt=0).select_related(
+                'shop', 'product').distinct()
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductItemFilter
-    queryset = ProductItem.objects.none()
+
+
+    @staticmethod
+    def get_cache_key(request, **kwargs):
+        """
+        Функция для получения ключа кэша
+        """
+        used_shop_filter = request.GET.get('shop_id', '')
+        used_category_filter = request.GET.get('category_id', '')
+        used_search = request.GET.get('search', '')
+        used_ordering = request.GET.get('ordering', '')
+        return f'shops_{used_shop_filter}_{used_category_filter}_{used_search}_{used_ordering}'
 
     @extend_schema(**APIConfig.get_products_config())
     def get(self, request, *args, **kwargs):
-        return ProductsBackend.get_products(self, request)
+        cache_key = self.get_cache_key(request, **kwargs)
+        products = cache.get(cache_key)
+        if products is None:
+            products = super().get(request, *args, **kwargs).data
+            if products is not None:
+                cache.set(cache_key, products, 60 * 5)
+        return JsonResponse(products)
 
 
 class ShoppingCartView(APIView):
@@ -259,6 +282,18 @@ class SellerOrdersView(APIView):
     @extend_schema(**APIConfig.get_seller_orders_config())
     def get(self, request, *args, **kwargs):
         return SellerBackend.get_orders(request)
+
+
+class SellerProductsView(APIView):
+    """
+    Представление для получения списка товаров продавца
+    Доступно только для авторизованного продавца
+    """
+    permission_classes = (IsAuthenticated, IsSeller)
+
+    @extend_schema(**APIConfig.get_seller_products_config())
+    def get(self, request, *args, **kwargs):
+        return SellerBackend.get_seller_products(request)
 
 
 class ContactView(APIView):
@@ -391,7 +426,7 @@ class PopularProductsView(APIView):
         Получение списка наиболее популярных товаров
         Параметр amount - количество популярных товаров, которое нужно получить
         """
-        amount = request.GET.get('amount', None)
+        amount = request.GET.get('amount')
         if amount and amount.isdigit() and int(amount) > 0:
             return ProductsBackend.get_product_ranking(int(amount))
         else:

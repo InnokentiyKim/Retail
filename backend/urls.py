@@ -2,7 +2,7 @@ from django.urls import path
 from backend.views import AccountRegisterView, AccountConfirmView, AccountView, SellerGoodsView, \
     CategoriesView, ShopsView, ProductItemView, ShoppingCartView, SellerStatusView, SellerOrdersView, \
     ContactView, BuyerOrdersView, CouponView, SellerShopView, PopularProductsView, ManagerOrdersView, \
-    TokenObtain, TokenRefresh, AccountResetPasswordView, AccountResetPasswordConfirmView
+    TokenObtain, TokenRefresh, AccountResetPasswordView, AccountResetPasswordConfirmView, SellerProductsView
 
 app_name = 'backend'
 
@@ -19,6 +19,7 @@ urlpatterns = [
     path('seller/goods', SellerGoodsView.as_view(), name='seller-goods'),
     path('seller/status', SellerStatusView.as_view(), name='seller-status'),
     path('seller/orders', SellerOrdersView.as_view(), name='seller-orders'),
+    path('seller/products', SellerProductsView.as_view(), name='seller-products'),
     path('seller/shop', SellerShopView.as_view(), name='seller-shop'),
     path('shops', ShopsView.as_view(), name='shops'),
     path('products', ProductItemView.as_view(), name='products'),

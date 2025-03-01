@@ -262,6 +262,23 @@ class SellerBackend:
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
+    @staticmethod
+    def get_seller_products(request):
+        """
+        Метод возвращает список товаров, относящихся к магазину текущего пользователя
+
+        Параметры:
+            request (Request): Объект запроса.
+        Возвращает:
+            Response: Объект ответа, содержащий список товаров продавца
+        """
+        products = ProductItem.objects.filter(shop__user_id=request.user.id).select_related(
+            'product').distinct()
+        if products is None:
+            return JsonResponse({'success': False, 'error': 'No products found'}, status=http_status.HTTP_404_NOT_FOUND)
+        serializer = ProductItemSerializer(products, many=True)
+        return Response(serializer.data)
+
 
 class ProductsBackend:
     @staticmethod
@@ -435,7 +452,8 @@ class BuyerBackend:
             return JsonResponse({'success': False, 'error': serializer.errors}, status=http_status.HTTP_400_BAD_REQUEST)
         cart = Order.objects.filter(user_id=request.user.id, state=OrderStateChoices.PREPARING).first()
         if cart is None:
-            return JsonResponse({'success': False, 'error': 'No order found'}, status=http_status.HTTP_404_NOT_FOUND)
+            return JsonResponse({'success': False, 'error': 'No active shopping cart found'},
+                                status=http_status.HTTP_404_NOT_FOUND)
         query = Q()
         for item_id in deleting_items_list:
             query |= Q(order_id=cart.id, id=item_id)

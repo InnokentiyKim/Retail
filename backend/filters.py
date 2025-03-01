@@ -7,13 +7,11 @@ class ProductItemFilter(filters.FilterSet):
     Фильтры для модели ProductItem
     """
     shop_id = filters.NumberFilter(field_name='shop_id', lookup_expr='exact')
-    category_id = filters.NumberFilter(field_name='product__category_id')
+    category_id = filters.NumberFilter(field_name='product__category_id', lookup_expr='exact')
     search = filters.CharFilter(field_name='product__name', lookup_expr='icontains')
     ordering = filters.OrderingFilter(
         fields=(
             ('id', 'id'),
-            ('product', 'product__name'),
-            ('shop', 'shop__name'),
             ('price', 'price'),
         )
     )

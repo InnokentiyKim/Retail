@@ -1,6 +1,6 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
-from .tasks import export_to_csv
+from .order import export_to_csv
 from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm, Coupon
 
 
@@ -9,7 +9,9 @@ def admin_export_to_csv(modeladmin, request, queryset):
     Этот метод вызывается из административного интерфейса Django и экспортирует выбранные данные в CSV-файл.
     """
     options = modeladmin.model._meta
-    export_to_csv.delay(options, queryset)
+    response = export_to_csv(options, queryset)
+    return response
+
 
 admin_export_to_csv.short_description = "Export to CSV"
 

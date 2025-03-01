@@ -1,5 +1,4 @@
 from decimal import Decimal
-
 from django.utils import timezone
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty, OrderStateChoices
 from backend.models import User, Shop, Category, Product, Coupon
