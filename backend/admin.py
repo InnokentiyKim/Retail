@@ -1,7 +1,8 @@
 from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .order import export_to_csv
-from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm, Coupon
+from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm, Coupon, \
+    ProductProperty
 
 
 def admin_export_to_csv(modeladmin, request, queryset):
@@ -35,7 +36,14 @@ class ProductItemInline(admin.TabularInline):
     Встраиваемая форма для добавления и редактирования экземпляров продуктов в административном интерфейсе Django.
     """
     model = ProductItem
-    extra = 1
+    extra = 0
+
+class ProductPropertyInline(admin.TabularInline):
+    """
+    Встраиваемая форма для добавления и редактирования свойств продуктов в административном интерфейсе Django.
+    """
+    model = ProductProperty
+    extra = 0
 
 
 @admin.register(User)
@@ -62,9 +70,10 @@ class ShopAdmin(admin.ModelAdmin):
     Административный интерфейс для магазинов.
     """
     list_display = ('name', 'user', 'is_active')
-    list_filter = ('user', 'is_active')
+    list_filter = ('is_active', )
     search_fields = ('name', 'description')
     inlines = [ProductItemInline]
+    actions = [admin_export_to_csv]
 
 
 @admin.register(Category)
@@ -78,6 +87,7 @@ class CategoryAdmin(admin.ModelAdmin):
     ordering = ('name', )
     raw_id_fields = ('shops', )
     inlines = [ProductInline]
+    actions = [admin_export_to_csv]
 
 
 @admin.register(Product)
@@ -90,6 +100,7 @@ class ProductAdmin(admin.ModelAdmin):
     search_fields = ('name', 'category__name')
     ordering = ('name', )
     inlines = [ProductItemInline]
+    actions = [admin_export_to_csv]
 
 
 @admin.register(ProductItem)
@@ -98,9 +109,11 @@ class ProductItemAdmin(admin.ModelAdmin):
     Административный интерфейс для экземпляров продуктов.
     """
     list_display = ('product', 'shop', 'quantity', 'preview', 'price', 'price_retail')
-    list_filter = ('product', 'shop')
+    list_filter = ('product__category', )
     search_fields = ('product__name', 'shop__name')
     ordering_fields = ('product', 'quantity', 'price', 'price_retail')
+    inlines = [ProductPropertyInline]
+    actions = [admin_export_to_csv]
 
 
 class OrderItemInline(admin.TabularInline):
@@ -108,14 +121,16 @@ class OrderItemInline(admin.TabularInline):
     Встраиваемая форма для добавления и редактирования заказов в административном интерфейсе Django.
     """
     model = OrderItem
-    extra = 1
+    extra = 0
 
 @admin.register(Order)
 class OrderAdmin(admin.ModelAdmin):
     """
     Административный интерфейс для заказов.
     """
-    list_display = ('user', 'created_at', 'state', 'contact')
+    list_display = ('user', 'created_at', 'state', 'contact', 'coupon', 'total_price')
+    list_filter = ('state',)
+    search_fields = ('user__email', 'user__username')
     date_hierarchy = 'created_at'
     inlines = [OrderItemInline]
     actions = [admin_export_to_csv]

@@ -1,22 +1,9 @@
+import random
 import pytest
 from django.urls.base import reverse
 from rest_framework.test import APIClient
 from model_bakery import baker
-
 from backend.models import UserTypeChoices
-
-
-@pytest.fixture(autouse=True)
-def settings():
-    from django.conf import settings
-    settings.DEBUG = True
-    settings.REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
-    settings.CASHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-        }
-    }
-    return settings
 
 
 @pytest.fixture
@@ -38,7 +25,7 @@ def user_factory():
                 user.set_password(kwargs['password'])
                 user.save()
             return user
-        return baker.make('backend.User', **model_args)
+        return baker.make('backend.User', **model_args, _quantity=kwargs['_quantity'])
     return factory
 
 @pytest.fixture
@@ -58,7 +45,7 @@ def admin_user_factory():
 @pytest.fixture
 def obtain_users_token(user_factory, password='secret1234', user_type=UserTypeChoices.BUYER):
     def factory(*args, **kwargs):
-        url = reverse('backend:token-obtain-pair')
+        url = reverse('backend:token-obtain')
         user = user_factory(password=password, type=user_type, _quantity=1)
         payload = {'email': user.email, 'password': password}
         response = APIClient().post(url, data=payload)
@@ -68,8 +55,8 @@ def obtain_users_token(user_factory, password='secret1234', user_type=UserTypeCh
 
 @pytest.fixture
 def obtain_users_credentials(user_factory, email='user@mail.ru', password='secret1234', user_type=UserTypeChoices.BUYER):
-    def factory(*args, **kwargs):
-        url = reverse('backend:token-obtain-pair')
+    def factory(email=email, password=password, user_type=user_type):
+        url = reverse('backend:token-obtain')
         user = user_factory(email=email, password=password, type=user_type, _quantity=1)
         payload = {'email': user.email, 'password': password}
         response = APIClient().post(url, data=payload)
@@ -82,26 +69,14 @@ def obtain_users_credentials(user_factory, email='user@mail.ru', password='secre
 def make_shops_with_products_factory(user_factory):
     def factory(*args, **kwargs):
         sellers = user_factory(type=UserTypeChoices.SELLER, _quantity=10)
+        shops = []
         for seller in sellers:
-            baker.make('Shop', user=seller, _quantity=1)
-        products = baker.make('Product', _quantity=5)
-        product_items = [baker.make('ProductItem', shop=shop, product=product) for product in products]
-        order_items = []
-        for product_item in product_items:
-            order_items = baker.make('OrderItem', product_item=product_item, _quantity=5)
-        return order_items
-    return factory
-
-
-@pytest.fixture
-def orders_factory(user_id=None):
-    def factory(*args, **kwargs):
-        shop = baker.make('Shop', user_id=user_id, _quantity=1)[0]
-        # category = baker.make('Category', shops=shop, _quantity=1)
-        products = baker.make('Product', _quantity=5)
-        product_items = [baker.make('ProductItem', shop=shop, product=product) for product in products]
-        order = baker.make('Order', user_id=user_id, _quantity=1)[0]
-        for product_item in product_items:
-            baker.make('OrderItem', order=order, product_item=product_item)
-        return order
+            shops = baker.make('Shop', user=seller, is_active=True, _quantity=1)
+        categories = baker.make('Category', shops=shops, _quantity=10)
+        products = baker.make('Product', category=random.choice(categories), _quantity=10)
+        product_items = []
+        for shop in shops:
+            for product in products:
+                product_items.append(baker.make('ProductItem', shop=shop, product=product, quantity=10))
+        return product_items
     return factory

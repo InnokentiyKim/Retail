@@ -52,8 +52,12 @@ def create_order_report(order_obj: Order) -> str | None:
         path = f"data/{filename}"
         doc = canvas.Canvas(path, pagesize=letter)
         doc.setFont("Helvetica", 12)
-        doc.drawString(4 * inch, 10 * inch, f"Order #{order_obj.id}")
-        doc.drawString(5 * inch, 9.5 * inch, f"Date: {order_obj.created_at}")
+        text_x, text_y = 4 * inch, 10 * inch
+
+        doc.drawString(text_x, text_y, f"Order #{order_obj.id}")
+        doc.drawString(text_x + 1 * inch, text_y - 0.5 * inch, f"Date: {order_obj.created_at}")
+
+        table_x, table_y = 0.5 * inch, text_y - 2.5 * inch
         table_data = [
             ["Product", "Price", "Quantity", "Cost"],
         ]
@@ -65,21 +69,23 @@ def create_order_report(order_obj: Order) -> str | None:
                 item.get_cost()]
             )
         table_data.append(["Total price with discount", "", "", round(order_obj.total_price, 2)])
+        table_y -= len(table_data) * 0.15 * inch
         table = Table(table_data, style=[
-            ('GRID', (0, 0), (-1, -1), 0.3, "black"),
+            ('GRID', (0, 0), (-1, -1), 0.2, "black"),
             ('BOX', (0, 0), (-1, -1), 0, "black"),
-            ('FONT', (0, 0), (-1, -1), "Helvetica", 11),
+            ('FONT', (0, 0), (-1, -1), "Helvetica", 10),
             ('ALIGN', (0, 0), (-1, -1), "CENTER"),
             ('VALIGN', (0, 0), (-1, -1), "MIDDLE"),
-            ('FONTSIZE', (0, 0), (-1, -1), 11),
+            ('FONTSIZE', (0, 0), (-1, -1), 10),
+            ('WRAP', (0, 0), (-1, -1), True),
         ])
         table.setStyle([
             ('FONTNAME', (0, 0), (-1, 0), "Helvetica-Bold"),
             ('FONTNAME', (0, -1), (-1, -1), "Helvetica-Bold"),
             ('GRID', (0, -1), (-1, -1), 0, (255, 255, 255)),
         ])
-        table.wrapOn(doc, 0.5 * inch, 8 * inch)
-        table.drawOn(doc, 0.5 * inch, 8 * inch)
+        table.wrapOn(doc, table_x, table_y)
+        table.drawOn(doc, table_x, table_y)
         doc.save()
         return path
     except Exception as err:

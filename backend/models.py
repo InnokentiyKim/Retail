@@ -1,5 +1,5 @@
 from datetime import timedelta
-from decimal import Decimal
+from decimal import Decimal, ROUND_HALF_UP
 from django.utils import timezone
 from django.contrib.auth.base_user import BaseUserManager
 from django.contrib.auth.models import AbstractUser
@@ -206,6 +206,7 @@ class ProductItem(models.Model):
     class Meta:
         verbose_name = 'Описание продукта'
         verbose_name_plural = 'Список описаний продуктов'
+        ordering = ['id']
 
     def __str__(self):
         return f"{self.product.name}"
@@ -358,8 +359,11 @@ class Order(models.Model):
     @property
     def total_price(self):
         if self.coupon and self.coupon.is_valid():
-            return Decimal(1 - self.coupon.discount / 100) * sum(item.get_cost() for item in self.ordered_items.all())
-        return Decimal(sum(item.get_cost() for item in self.ordered_items.all()))
+            discount = Decimal(1 - (self.coupon.discount / 100))
+            return (Decimal(discount * sum(item.get_cost() for item in self.ordered_items.all()))
+                    .quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        return (Decimal(sum(item.get_cost() for item in self.ordered_items.all()))
+                .quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
 
     def is_valid(self):
         if not self.ordered_items.all():
@@ -394,7 +398,7 @@ class OrderItem(models.Model):
         ]
 
     def get_cost(self):
-        return Decimal(self.quantity) * self.product_item.price
+        return Decimal(self.quantity * self.product_item.price)
 
     def __str__(self):
         return f"{self.product_item.product.name}"

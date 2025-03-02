@@ -1,12 +1,29 @@
-import os.path
+import random
 import pytest
-import yaml
+import mock
+from model_bakery import baker
 from django.urls.base import reverse
-from .fixtures import settings, client, user_factory, admin_user_factory, obtain_users_token, orders_factory, \
-    order_items_factory, obtain_users_credentials
-from backend.models import User, EmailTokenConfirm, UserTypeChoices
+from django.test.utils import override_settings
+
+from retail.settings import EMAIL_BACKEND
+from .fixtures import client, user_factory, obtain_users_token, obtain_users_credentials, \
+    make_shops_with_products_factory
+from backend.models import User, EmailTokenConfirm, UserTypeChoices, OrderStateChoices
 from rest_framework import status
-from pytest_mock import mocker
+
+
+@pytest.fixture(autouse=True)
+def settings():
+    from django.conf import settings
+    settings.DEBUG = True
+    settings.EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+    settings.REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
+    settings.CASHES = {
+        'default': {
+            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+        }
+    }
+    return settings
 
 
 @pytest.mark.parametrize(
@@ -80,7 +97,7 @@ def test_confirm_account(client):
 
 @pytest.mark.django_db
 def test_user_login(client, user_factory):
-    token_obtain_url = reverse('backend:token-obtain-pair')
+    token_obtain_url = reverse('backend:token-obtain')
     token_refresh_url = reverse('backend:token-refresh')
     password = 'secret1234'
     user = user_factory(password=password, _quantity=1)
@@ -124,24 +141,32 @@ def test_get_account_info(client, obtain_users_token):
     assert response.data is not None
 
 
-# @pytest.mark.django_db
-# def test_update_seller_goods(client, obtain_users_token, mocker):
-#     url = reverse('backend:seller-goods')
-#     token = obtain_users_token(user_type=UserTypeChoices.SELLER).get('access')
-#     client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
-#     file_upload_url = 'https://test.com/test_file.yaml'
-#     file_path = os.path.join(os.path.dirname(__file__), 'shops_test_data.yaml')
-#     with open(file_path, 'rb') as file:
-#         yaml_data = file.read()
-#     mocker.patch('requests.get', return_value={'content': yaml_data})
-#     response = client.post(url, {'url': file_upload_url})
-#     assert response.status_code == status.HTTP_200_OK
-#     assert response.data is not None
+@pytest.mark.django_db
+def test_get_update_seller_goods(client, obtain_users_credentials):
+    url = reverse('backend:seller-goods')
+    users_info = obtain_users_credentials(user_type=UserTypeChoices.SELLER)
+    token = users_info['token'].get('access')
+    user_id = users_info.get('user_id')
+    client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+    shop = baker.make('Shop', user_id=user_id, is_active=True)
+    file_upload_url = 'https://test.com/test_file.yaml'
+    file_path = 'data/shops_data.yaml'
+    with open(file_path, 'rb') as file:
+        yaml_data = file.read()
+    with mock.patch('requests.get') as mock_get:
+        mock_get.return_value.content = yaml_data
+        response = client.post(url, {'url': file_upload_url})
+        assert response.status_code == status.HTTP_200_OK
+        assert response.json().get('success') is True
+    url = reverse('backend:seller-products')
+    response = client.get(url)
+    assert response.status_code == status.HTTP_200_OK
+
 
 
 @pytest.mark.django_db
 def test_get_categories(client):
-    url = reverse('backend:categories')
+    url = reverse('backend:product-categories')
     response = client.get(url)
     assert response.status_code == status.HTTP_200_OK
 
@@ -155,22 +180,51 @@ def test_get_shops(client):
 
 @pytest.mark.django_db
 def test_get_product_items(client):
-    url = reverse('backend:shops')
+    url = reverse('backend:products')
     response = client.get(url)
     assert response.status_code == status.HTTP_200_OK
 
 
-# @pytest.mark.django_db
-# def test_shopping_cart(client, obtain_users_token, obtain_users_credentials, orders_factory):
-#     url = reverse('backend:shoppingcart')
-#     user_email, user_password = 'user@mail.ru', 'secret1234'
-#     users_info = obtain_users_credentials(email=user_email, password=user_password)
-#     token = users_info['token'].get('access')
-#     user_id = users_info.get('user_id')
-#     assert user_id is not None
-#     client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
-#     order = orders_factory(user=user_id, _quantity=1)
-#     response = client.get(url)
-#     assert response.status_code == status.HTTP_200_OK
-#     assert len(response.data) == 1
+@pytest.mark.django_db
+def test_get_create_shopping_cart(client, obtain_users_credentials, make_shops_with_products_factory):
+    url = reverse('backend:shoppingcart')
+    product_items = make_shops_with_products_factory()
+    users_info = obtain_users_credentials()
+    token = users_info['token'].get('access')
+    user_id = users_info.get('user_id')
+    assert user_id is not None
+    client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
 
+    added_items_quantity = 1
+    payload = [{'product_item': item.id, 'quantity': added_items_quantity} for item in product_items]
+    response = client.post(url, payload)
+    assert response.status_code == status.HTTP_200_OK
+
+    response = client.get(url)
+    assert response.status_code == status.HTTP_200_OK
+    assert len(response.data[0]['ordered_items']) == len(product_items)
+
+
+@override_settings(CELERY_TASK_ALWAYS_EAGER=True, EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend')
+@pytest.mark.django_db
+def test_confirm_order(client, obtain_users_credentials, make_shops_with_products_factory):
+    url = reverse('backend:orders')
+    users_info = obtain_users_credentials()
+    token = users_info['token'].get('access')
+    user_id = users_info.get('user_id')
+    assert user_id is not None
+    client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+    product_items = make_shops_with_products_factory()
+    contact = baker.make('Contact', user_id=user_id)
+    order = baker.make('Order', user_id=user_id)
+    amount = random.randint(1, len(product_items))
+    ordered_items = [baker.make('OrderItem', order=order, product_item=item, quantity=1)
+                     for item in product_items[:amount]]
+    payload = {'id': order.id, 'contact': contact.id}
+    response = client.post(url, data=payload)
+    assert response.status_code == status.HTTP_200_OK
+
+    response = client.get(url)
+    assert response.status_code == status.HTTP_200_OK
+    assert response.data[0]['id'] == order.id
+    assert response.data[0]['state'] == OrderStateChoices.CREATED

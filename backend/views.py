@@ -5,7 +5,6 @@ from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
 from rest_framework.views import APIView
 from rest_framework.request import Request
-from rest_framework.renderers import JSONRenderer
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from django_rest_passwordreset.views import ResetPasswordRequestToken, ResetPasswordConfirm
 from .backend import UserBackend, ProductsBackend, SellerBackend, BuyerBackend, ContactBackend, ManagerBackend
