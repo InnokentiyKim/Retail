@@ -4,8 +4,6 @@ import mock
 from model_bakery import baker
 from django.urls.base import reverse
 from django.test.utils import override_settings
-
-from retail.settings import EMAIL_BACKEND
 from .fixtures import client, user_factory, obtain_users_token, obtain_users_credentials, \
     make_shops_with_products_factory
 from backend.models import User, EmailTokenConfirm, UserTypeChoices, OrderStateChoices
@@ -161,7 +159,6 @@ def test_get_update_seller_goods(client, obtain_users_credentials):
     url = reverse('backend:seller-products')
     response = client.get(url)
     assert response.status_code == status.HTTP_200_OK
-
 
 
 @pytest.mark.django_db
