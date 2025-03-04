@@ -430,5 +430,3 @@ class PopularProductsView(APIView):
             return ProductsBackend.get_product_ranking(int(amount))
         else:
             return ProductsBackend.get_product_ranking(5)
-
-

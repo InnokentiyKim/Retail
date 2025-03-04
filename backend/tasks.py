@@ -1,4 +1,5 @@
 import os.path
+import requests
 from email.mime.application import MIMEApplication
 from typing import Any
 from django.db import IntegrityError
