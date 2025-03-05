@@ -1,4 +1,3 @@
-import os.path
 import requests
 from email.mime.application import MIMEApplication
 from typing import Any
@@ -39,10 +38,7 @@ def import_goods(url: str, shop_id: int, user_id: int):
         - url (str): URL YAML-файла
         - user_id (int): Идентификатор пользователя
     """
-    # stream = requests.get(url).content
-    path = os.path.join(os.path.dirname(__file__), 'shops_data.yaml')
-    with open(path, 'rb') as file:
-        stream = file.read()
+    stream = requests.get(url).content
     try:
         data = yaml.safe_load(stream)
     except Exception as err:

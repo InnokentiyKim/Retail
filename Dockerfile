@@ -12,5 +12,3 @@ COPY . .
 EXPOSE 8000
 
 LABEL authors="inncent"
-
-CMD ["celery", "-A", "retail", "worker", "-l", "info"]
