@@ -1,0 +1,2 @@
+[run]
+omit=tests/*,.venv/*,*/migrations/*,*images/*,data/*,retail/*,.github/*
