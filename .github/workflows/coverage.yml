@@ -14,4 +14,4 @@ jobs:
                 token: ${{ secrets.GITHUB_TOKEN }}
           - name: Update README
             run: |
-              sed -i "s/Coverage-[0-9]*%/Coverage-$(echo ${{ github.event.pull_request.labels }} | grep -oP '(?<=coverage=).*?(?=%)')/%" README.md
+              sed -i "s/Coverage-[0-9]*%/Coverage-$(cat coverage.xml | grep -oP '(?<=<lineRate>).*?(?=</lineRate>)')/%" README.md
