@@ -27,7 +27,8 @@ jobs:
             run: |
               echo "[![Coverage Status](https://img.shields.io/badge/Coverage-${COVERAGE_PERCENTAGE}%-%23green)](https://github.com/InnokentiyKim/Retail/actions)" > README.md
               sed -i "s/\$COVERAGE_PERCENTAGE/$COVERAGE_PERCENTAGE/g" README.md
-              git checkout --force main
+              git fetch origin
+              git checkout --force --track origin/main
               git add README.md
               git commit -m "Update README.md with coverage badge"
               git push
