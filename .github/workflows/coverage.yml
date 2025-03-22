@@ -25,7 +25,7 @@ jobs:
                 token: ${{ secrets.GITHUB_TOKEN }}
           - name: Update README with coverage badge
             run: |
-              git pull origin main
+              git pull origin dev
               echo "[![Coverage Status](https://img.shields.io/badge/Coverage-${COVERAGE_PERCENTAGE}%25-%23green)](https://github.com/InnokentiyKim/Retail/actions)" > README.md
               sed -i "s/\$COVERAGE_PERCENTAGE/$COVERAGE_PERCENTAGE/g" README.md
               git add README.md
