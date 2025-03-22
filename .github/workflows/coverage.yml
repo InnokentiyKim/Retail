@@ -1,7 +1,8 @@
-name: Coverage
+name: 'coverage'
 on:
-    push:
+    pull_request:
         branches:
+            - master
             - main
 jobs:
     coverage:
@@ -11,7 +12,13 @@ jobs:
             uses: actions/checkout@v2
           - name: Run tests
             run: |
-              pytest --cov=backend --cov-report=coverage.xml
-          - name: Update README
+              pytest --cov-report xml:coverage.xml
+          - name: Get Cover
+            uses: orgoro/coverage@v3.2
+            with:
+                coverageFile: coverage.xml
+                token: ${{ secrets.RUN_TESTS }}
+          - name: Create badge
             run: |
-              sed -i "s/Coverage-[0-9]*%/Coverage-$(cat coverage.xml | grep -oP '(?<=<lineRate>).*?(?=</lineRate>)')/%" README.md
+              echo "![Coverage Status](https://img.shields.io/badge/Coverage-$COVERAGE_PERCENTAGE%-%23green)" > badge.md
+              echo "Coverage percentage: $COVERAGE_PERCENTAGE%" >> badge.md
