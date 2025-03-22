@@ -29,4 +29,4 @@ jobs:
               sed -i "s/\$COVERAGE_PERCENTAGE/$COVERAGE_PERCENTAGE/g" README.md
               git add README.md
               git commit -m "Update README.md with coverage badge"
-              git push
+              git push origin HEAD:main
