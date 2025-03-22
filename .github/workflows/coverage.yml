@@ -23,11 +23,3 @@ jobs:
             with:
                 coverageFile: ./.github/coverage.xml
                 token: ${{ secrets.GITHUB_TOKEN }}
-          - name: Update README with coverage badge
-            run: |
-              git pull --rebase origin dev
-              echo "[![Coverage Status](https://img.shields.io/badge/Coverage-${COVERAGE_PERCENTAGE}%25-%23green)](https://github.com/InnokentiyKim/Retail/actions)" > README.md
-              sed -i "s/\$COVERAGE_PERCENTAGE/$COVERAGE_PERCENTAGE/g" README.md
-              git add README.md
-              git commit -m "Update README.md with coverage badge"
-              git push origin HEAD:dev
