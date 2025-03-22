@@ -1,7 +1,7 @@
 
 [<img src="./images/Market.jpg" width="240" height="240">](https://github.com/InnokentiyKim/Retail/)
     
-[![Coverage Status](https://img.shields.io/badge/Coverage-$COVERAGE_PERCENTAGE%-%23green)](https://github.com/InnokentiyKim/Retail/actions)
+[![Coverage Status](https://img.shields.io/badge/Coverage-${COVERAGE_PERCENTAGE}%-%23green)](https://github.com/InnokentiyKim/Retail/actions)
 
 # Online Market – это REST API сервис для продажи и покупки разнообразных товаров.
 > #### Сервис позволяет покупателям находить нужные товары, делать заказы, управлять ими, следить за их статусом и получать уведомления об изменениях

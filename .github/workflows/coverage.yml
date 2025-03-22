@@ -10,8 +10,15 @@ jobs:
         steps:
           - name: Checkout code
             uses: actions/checkout@v2
+          - name: Get coverage percentage
+            run: |
+              COVERAGE_PERCENTAGE=$(grep -oP '(?<=<lineRate>).*?(?=</lineRate>)' ./.github/coverage.xml)
+              echo "COVERAGE_PERCENTAGE=$COVERAGE_PERCENTAGE" >> $GITHUB_ENV
           - name: Get Cover
             uses: orgoro/coverage@v3.2
             with:
                 coverageFile: ./.github/coverage.xml
                 token: ${{ secrets.GITHUB_TOKEN }}
+          - name: Update README with coverage badge
+            run: |
+              echo "[![Coverage Status](https://img.shields.io/badge/Coverage-${COVERAGE_PERCENTAGE}%-%23green)](https://github.com/InnokentiyKim/Retail/actions)" > README.md
