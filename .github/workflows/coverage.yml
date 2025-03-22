@@ -12,7 +12,7 @@ jobs:
             uses: actions/checkout@v2
           - name: Get coverage percentage
             run: |
-              COVERAGE_PERCENTAGE=$(grep -oP '(?<=<lineRate>).*?(?=</lineRate>)' ./.github/coverage.xml)
+              COVERAGE_PERCENTAGE=$(grep -oP '(?<=line-rate=")[^"]*' ./.github/coverage.xml)
               echo "COVERAGE_PERCENTAGE=$COVERAGE_PERCENTAGE" >> $GITHUB_ENV
           - name: Get Cover
             uses: orgoro/coverage@v3.2
