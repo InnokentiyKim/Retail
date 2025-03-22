@@ -39,12 +39,21 @@ services:
       DB_PORT: ${DB_PORT}
       DB_USER: ${DB_USER}
       DB_PASSWORD: ${DB_PASSWORD}
+      REDIS_CACHE_HOST: ${REDIS_CACHE_HOST}
+      REDIS_CACHE_PORT: ${REDIS_CACHE_PORT}
+      REDIS_CACHE_DB: ${REDIS_CACHE_DB}
       REDIS_HOST: ${REDIS_HOST}
       REDIS_PORT: ${REDIS_PORT}
       REDIS_DB: ${REDIS_DB}
+      DEBUG: ${DEBUG}
+      EMAIL_BACKEND: ${EMAIL_BACKEND}
+      EMAIL_HOST: ${EMAIL_HOST}
+      EMAIL_HOST_USER: ${EMAIL_HOST_USER}
+      EMAIL_HOST_PASSWORD: ${EMAIL_HOST_PASSWORD}
+      EMAIL_PORT: ${EMAIL_PORT}
       CELERY_BROKER_URL: ${CELERY_BROKER_URL}
       CELERY_RESULT_BACKEND: ${CELERY_RESULT_BACKEND}
-    command: sh -c "python3 manage.py migrate && python3 manage.py runserver 0.0.0.0:8000"
+    command: sh -c "celery -A retail worker -l info & python3 manage.py migrate && python3 manage.py runserver 0.0.0.0:8000"
     depends_on:
       - db
       - rabbitmq
