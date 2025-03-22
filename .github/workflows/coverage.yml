@@ -14,6 +14,7 @@ jobs:
             run: |
               COVERAGE_PERCENTAGE=$(grep -oP '(?<=line-rate=")[^"]*' ./.github/coverage.xml | awk '{printf "%.0f", $1*100}')
               echo "COVERAGE_PERCENTAGE=$COVERAGE_PERCENTAGE" >> $GITHUB_ENV
+              sed -i "s/\$COVERAGE_PERCENTAGE/$COVERAGE_PERCENTAGE/g" README.md
           - name: Get Cover
             uses: orgoro/coverage@v3.2
             with:
