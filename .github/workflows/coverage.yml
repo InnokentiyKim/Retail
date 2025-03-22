@@ -14,4 +14,4 @@ jobs:
             uses: orgoro/coverage@v3.2
             with:
                 coverageFile: ./.github/coverage.xml
-                token: ${{ secrets.RUN_TESTS }}
+                token: ${{ secrets.GITHUB_TOKEN }}
