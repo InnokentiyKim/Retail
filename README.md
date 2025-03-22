@@ -1,5 +1,5 @@
 
-[<img src="./images/Market.jpg" width="240" height="240">](https://github.com/InnokentiyKim/LearnEnglishTgBot/) 
+[<img src="./images/Market.jpg" width="240" height="240">](https://github.com/InnokentiyKim/Retail/)
     
 [![Coverage Status](https://img.shields.io/badge/Coverage-$COVERAGE_PERCENTAGE%-%23green)](https://github.com/InnokentiyKim/Retail/actions)
 
@@ -287,7 +287,9 @@ _Список переменных окружения (по умолчанию/�
 <a name="docs"></a>
 ## 3. Документация
 
-Документация по проекту доступна в формате Swagger: [localhost:8000/api/docs](http://127.0.0.1:8000/api/docs/).  
+
+Документация по проекту доступна в формате Swagger: [localhost:8000/api/schema](http://127.0.0.1:8000/api/docs/).  
+
 **Заметка: Метод DELETE OpenAPI не поддерживает передачу тела запроса*
 
 

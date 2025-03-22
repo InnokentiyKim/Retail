@@ -10,15 +10,8 @@ jobs:
         steps:
           - name: Checkout code
             uses: actions/checkout@v2
-          - name: Run tests
-            run: |
-              pytest --cov-report xml:coverage.xml
           - name: Get Cover
             uses: orgoro/coverage@v3.2
             with:
-                coverageFile: coverage.xml
-                token: ${{ secrets.RUN_TESTS }}
-          - name: Create badge
-            run: |
-              echo "![Coverage Status](https://img.shields.io/badge/Coverage-$COVERAGE_PERCENTAGE%-%23green)" > badge.md
-              echo "Coverage percentage: $COVERAGE_PERCENTAGE%" >> badge.md
+                coverageFile: ./.github/coverage.xml
+                token: ${{ GITHUB_TOKEN }}
