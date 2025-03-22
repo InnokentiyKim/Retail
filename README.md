@@ -1,5 +1,5 @@
 
-[<img src="./images/Market.jpg" width="240" height="240">](https://github.com/InnokentiyKim/LearnEnglishTgBot/)
+[<img src="./images/Market.jpg" width="240" height="240">](https://github.com/InnokentiyKim/Retail/)
 
 # Online Market – это REST API сервис для продажи и покупки разнообразных товаров.
 > #### Сервис позволяет покупателям находить нужные товары, делать заказы, управлять ими, следить за их статусом и получать уведомления об изменениях
@@ -283,7 +283,7 @@ _Используйте файл `requirements.txt` в корне проекта
 <a name="docs"></a>
 ## 3. Документация
 
-Документация по проекту доступна в формате Swagger: [localhost:8000/api/schema](http://127.0.0.1:8000/api/schema/).  
+Документация по проекту доступна в формате Swagger: [localhost:8000/api/schema](http://127.0.0.1:8000/api/docs/).  
 **Заметка: Метод DELETE OpenAPI не поддерживает передачу тела запроса*
 
 
