@@ -233,8 +233,8 @@ BATON = {
     'SITE_TITLE': 'Online Market',
     'INDEX_TITLE': 'Online Market administration',
     'SUPPORT_HREF': 'https://github.com/InnokentiyKim/Retail/issues',
-    # 'COPYRIGHT': 'copyright © 2025 <a href="https://www.otto.to.it">Otto srl</a>', # noqa
-    # 'POWERED_BY': '<a href="https://www.otto.to.it">Otto srl</a>',
+    'COPYRIGHT': 'copyright © 2025 <a href="https://github.com/InnokentiyKim">Innokentiy Kim</a>', # noqa
+    'POWERED_BY': '<a href="https://github.com/InnokentiyKim">Innokentiy Kim</a>',
     'CONFIRM_UNSAVED_CHANGES': True,
     'SHOW_MULTIPART_UPLOADING': True,
     'ENABLE_IMAGES_PREVIEW': True,
@@ -254,8 +254,6 @@ BATON = {
         'label': 'Search contents...',
         'url': '/search/',
     },
-    # 'BATON_CLIENT_ID': 'xxxxxxxxxxxxxxxxxxxx',
-    # 'BATON_CLIENT_SECRET': 'xxxxxxxxxxxxxxxxxx',
     'IMAGE_PREVIEW_WIDTH': 200,
     'AI': {
         # 'MODELS': "myapp.foo.bar", # alternative to the below for lines, a function which returns the models dictionary
@@ -273,7 +271,7 @@ BATON = {
         {
             'type': 'app',
             'name': 'auth',
-            'label': 'Authentication',
+            'label': 'Authentication and Authorization',
             'icon': 'fa fa-lock',
             'default_open': True,
             'models': (
@@ -292,7 +290,6 @@ BATON = {
         { 'type': 'free', 'label': 'Custom Link', 'url': 'http://www.google.it', 'perms': ('flatpages.add_flatpage', 'auth.change_user') },
         { 'type': 'free', 'label': 'My parent voice', 'children': [
             { 'type': 'model', 'label': 'A Model', 'name': 'mymodelname', 'app': 'myapp', 'icon': 'fa fa-gavel' },
-            { 'type': 'free', 'label': 'Another custom link', 'url': 'http://www.google.it' },
         ] },
     )
 }
