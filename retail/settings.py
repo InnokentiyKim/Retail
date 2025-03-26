@@ -231,9 +231,10 @@ SIMPLE_JWT = {
 BATON = {
     'SITE_HEADER': 'Online Market',
     'SITE_TITLE': 'Online Market',
+    'THEME': 'default',
     'INDEX_TITLE': 'Online Market administration',
     'SUPPORT_HREF': 'https://github.com/InnokentiyKim/Retail/issues',
-    'COPYRIGHT': 'copyright © 2025 <a href="https://github.com/InnokentiyKim">Innokentiy Kim</a>', # noqa
+    'COPYRIGHT': 'copyright © 2025 <a href="https://github.com/InnokentiyKim">Inncent</a>', # noqa
     'POWERED_BY': '<a href="https://github.com/InnokentiyKim">Innokentiy Kim</a>',
     'CONFIRM_UNSAVED_CHANGES': True,
     'SHOW_MULTIPART_UPLOADING': True,
@@ -244,7 +245,7 @@ BATON = {
     'CHANGEFORM_FIXED_SUBMIT_ROW': True,
     'COLLAPSABLE_USER_AREA': False,
     'MENU_ALWAYS_COLLAPSED': False,
-    'MENU_TITLE': 'Menu',
+    'MENU_TITLE': 'MENU',
     'MESSAGES_TOASTS': False,
     'GRAVATAR_DEFAULT_IMG': 'retro',
     'GRAVATAR_ENABLED': True,
@@ -256,7 +257,6 @@ BATON = {
     },
     'IMAGE_PREVIEW_WIDTH': 200,
     'AI': {
-        # 'MODELS': "myapp.foo.bar", # alternative to the below for lines, a function which returns the models dictionary
         'IMAGES_MODEL': AIModels.BATON_DALL_E_3,
         'VISION_MODEL': AIModels.BATON_GPT_4O_MINI,
         'SUMMARIZATIONS_MODEL': AIModels.BATON_GPT_4O_MINI,
@@ -266,30 +266,67 @@ BATON = {
         'CORRECTION_SELECTORS': ["textarea", "input[type=text]:not(.vDateField):not([name=username]):not([name*=subject_location])"],
         'CORRECTIONS_MODEL': AIModels.BATON_GPT_3_5_TURBO,
     },
+    'USER_AVATAR': {
+        'avatar_field': '/static/img/avatar.png',
+        'avatar_size': 40,
+    },
     'MENU': (
-        { 'type': 'title', 'label': 'main', 'apps': ('auth', ) },
+        { 'type': 'title', 'label': 'Market', 'apps': ('backend', 'auth', 'Django_Rest_Passwordreset', 'Baton') },
+        {
+            'type': 'app',
+            'name': 'backend',
+            'label': 'Online Market',
+            'icon': 'fa fa-shopping-cart',
+            'default_open': True,
+            'models': [
+                {
+                    'name': 'shop',
+                    'label': 'Shops',
+                    'icon': 'fa fa-store'
+                },
+                {
+                    'name': 'category',
+                    'label': 'Categories',
+                    'icon': 'fa fa-list'
+                },
+                {
+                    'name': 'product',
+                    'label': 'Products',
+                    'icon': 'fa fa-box'
+                },
+                {
+                    'name': 'productitem',
+                    'label': 'ProductItems',
+                    'icon': 'fa fa-gift'
+                },
+                {
+                    'name': 'order',
+                    'label': 'Orders',
+                    'icon': 'fa fa-shopping-basket'
+                },
+                {
+                    'name': 'coupon',
+                    'label': 'Coupons',
+                    'icon': 'fa fa-ticket'
+                },
+            ]
+        },
         {
             'type': 'app',
             'name': 'auth',
             'label': 'Authentication and Authorization',
             'icon': 'fa fa-lock',
             'default_open': True,
-            'models': (
-                {
-                    'name': 'user',
-                    'label': 'Users'
-                },
+            'models': [
                 {
                     'name': 'group',
-                    'label': 'Groups'
+                    'label': 'Groups',
+                    'icon': 'fa fa-users'
                 },
-            )
+            ]
         },
-        { 'type': 'title', 'label': 'Contents', 'apps': ('flatpages', ) },
-        { 'type': 'model', 'label': 'Pages', 'name': 'flatpage', 'app': 'flatpages' },
-        { 'type': 'free', 'label': 'Custom Link', 'url': 'http://www.google.it', 'perms': ('flatpages.add_flatpage', 'auth.change_user') },
-        { 'type': 'free', 'label': 'My parent voice', 'children': [
-            { 'type': 'model', 'label': 'A Model', 'name': 'mymodelname', 'app': 'myapp', 'icon': 'fa fa-gavel' },
-        ] },
-    )
+    ),
+    'DASHBOARD': {
+    'order': ['backend', 'auth'],
+    }
 }
