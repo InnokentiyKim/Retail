@@ -1,5 +1,6 @@
 from django.core.cache import cache
 from django.http.response import JsonResponse
+from django.shortcuts import render
 from drf_spectacular.utils import extend_schema
 from rest_framework.generics import ListAPIView
 from rest_framework.permissions import IsAuthenticated, AllowAny, IsAdminUser
@@ -430,3 +431,7 @@ class PopularProductsView(APIView):
             return ProductsBackend.get_product_ranking(int(amount))
         else:
             return ProductsBackend.get_product_ranking(5)
+
+
+def authorize_by_oauth(request):
+    return render(request, 'oauth.html')

@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'django_rest_passwordreset',
     'drf_spectacular',
+    'social_django',
     'baton.autodiscover',
 ]
 
@@ -69,7 +70,7 @@ ROOT_URLCONF = 'retail.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': ['templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -205,6 +206,11 @@ REST_FRAMEWORK = {
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
 }
 
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.github.GithubOAuth2',
+    'django.contrib.auth.backends.ModelBackend'
+)
+
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Online Market',
@@ -227,6 +233,10 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=15),
 }
 
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_KEY', '')
+SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_SECRET', '')
+SOCIAL_AUTH_GITHUB_SCOPE = []
 
 BATON = {
     'SITE_HEADER': 'Online Market',
