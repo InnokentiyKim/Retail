@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     'django_rest_passwordreset',
     'drf_spectacular',
     'social_django',
+    'easy_thumbnails',
     'baton.autodiscover',
 ]
 
@@ -234,9 +235,24 @@ SIMPLE_JWT = {
 }
 
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
+SOCIAL_AUTH_REQUIRE_POST = True
 SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_KEY', '')
 SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_SECRET', '')
-SOCIAL_AUTH_GITHUB_SCOPE = []
+SOCIAL_AUTH_GITHUB_SCOPE = ['email']
+
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.social_auth.associate_by_email',
+    'social_core.pipeline.user.create_user',
+    'backend.authentication.create_profile',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+)
 
 BATON = {
     'SITE_HEADER': 'Online Market',
