@@ -7,6 +7,7 @@ from celery import shared_task
 from django.core.mail import EmailMultiAlternatives
 from backend.models import Category, Product, ProductItem, Property, ProductProperty
 from backend.serializers import ShopGoodsImportSerializer
+from easy_thumbnails.files import generate_all_aliases
 
 
 @shared_task
@@ -78,3 +79,12 @@ def import_goods(url: str, shop_id: int, user_id: int):
         except IntegrityError as err:
             return {'success': False, 'error': str(err)}
     return {'success': True}
+
+
+@shared_task
+def generate_thumbnails(model, pk, field):
+    instance = model.objects.get(pk=pk)
+    fieldfile = getattr(instance, field)
+    generate_all_aliases(fieldfile, include_global=True)
+
+
