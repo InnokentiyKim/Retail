@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'django_rest_passwordreset',
     'drf_spectacular',
+    'cacheops',
     'social_django',
     'easy_thumbnails',
     'baton.autodiscover',
@@ -253,6 +254,19 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
 )
+
+
+CACHEOPS = {
+    'timeout': 60*60,
+    'cache_on_save': True,
+    'cache_on_get': True,
+}
+
+CACHEOPS_REDIS = {
+    'host': 'localhost',
+    'port': 6379,
+    'db': 0,
+}
 
 BATON = {
     'SITE_HEADER': 'Online Market',
