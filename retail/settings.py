@@ -103,22 +103,38 @@ DATABASES = {
 }
 
 
-REDIS_CACHE_HOST = os.getenv('REDIS_CACHE_HOST', 'localhost')
-REDIS_CACHE_PORT = os.getenv('REDIS_CACHE_PORT', '6379')
-REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
+# REDIS_CACHE_HOST = os.getenv('REDIS_CACHE_HOST', 'localhost')
+# REDIS_CACHE_PORT = os.getenv('REDIS_CACHE_PORT', '6379')
+# REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_DB = os.getenv('REDIS_DB', '0')
 
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': f'redis://{REDIS_CACHE_HOST}:{REDIS_CACHE_PORT}/{REDIS_CACHE_DB}',
-        'TIMEOUT': 60 * 5,
-    }
+CACHEOPS_REDIS = {
+    'host': os.getenv('REDIS_CACHE_HOST', 'localhost'),
+    'port': os.getenv('REDIS_CACHE_PORT', '6379'),
+    'db': os.getenv('REDIS_CACHE_DB', '0'),
 }
+
+CACHEOPS = {
+    'auth.user': {'ops': 'get', 'timeout': 60*15},
+    'auth.*': {'ops': {'fetch', 'get'}, 'timeout': 60*60},
+    'auth.permission': {'ops': 'all', 'timeout': 60*60},
+    '*.*': {'ops': (), 'timeout': 60*60},
+    'cache_on_save': True,
+    'cache_on_get': True,
+}
+
+CACHEOPS_DEGRADE_ON_FAILURE = True
+
+# CACHES = {
+#     'default': {
+#         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+#         'LOCATION': f'redis://{REDIS_CACHE_HOST}:{REDIS_CACHE_PORT}/{REDIS_CACHE_DB}',
+#         'TIMEOUT': 60 * 5,
+#     }
+# }
 
 
 # Password validation
@@ -255,18 +271,6 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.user_details',
 )
 
-
-CACHEOPS = {
-    'timeout': 60*60,
-    'cache_on_save': True,
-    'cache_on_get': True,
-}
-
-CACHEOPS_REDIS = {
-    'host': 'localhost',
-    'port': 6379,
-    'db': 0,
-}
 
 BATON = {
     'SITE_HEADER': 'Online Market',

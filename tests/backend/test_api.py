@@ -16,11 +16,12 @@ def settings():
     settings.DEBUG = True
     settings.EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     settings.REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
-    settings.CASHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-        }
-    }
+    settings.CACHEOPS_ENABLED = False
+    # settings.CASHES = {
+    #     'default': {
+    #         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    #     }
+    # }
     return settings
 
 
