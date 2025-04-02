@@ -7,6 +7,7 @@ from django.contrib.auth.validators import UnicodeUsernameValidator
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.conf import settings
+
 import uuid
 
 
@@ -100,6 +101,7 @@ class User(AbstractUser):
         verbose_name = 'Пользователь'
         verbose_name_plural = 'Пользователи'
 
+
 class Profile(models.Model):
     objects = UserManager()
 
@@ -107,7 +109,7 @@ class Profile(models.Model):
     photo = models.ImageField(upload_to='images/profiles/%Y/%m/%d', blank=True, null=True)
 
     def __str__(self):
-        return f"Profile of {self.user.email}"
+        return f"Profile of {self.user}"
 
 
 class Shop(models.Model):

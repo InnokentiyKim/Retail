@@ -8,7 +8,7 @@ from backend.views import authorize_by_oauth
 urlpatterns = [
     path('admin/', admin.site.urls),
     re_path('', include('social_django.urls', namespace='social')),
-    path('auth/', authorize_by_oauth),
+    path('social-auth/', authorize_by_oauth),
     path('baton/', include('baton.urls')),
     path('api/v1/', include('backend.urls'), name='backend'),
     path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
