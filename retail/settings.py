@@ -276,6 +276,13 @@ SOCIAL_AUTH_PIPELINE = (
 )
 
 
+THUMBNAIL_ALIASES = {
+    '': {
+        'default': {'size': (100, 100), 'crop': 'smart'},
+    },
+}
+
+
 BATON = {
     'SITE_HEADER': 'Online Market',
     'SITE_TITLE': 'Online Market',
