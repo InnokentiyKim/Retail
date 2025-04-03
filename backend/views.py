@@ -435,3 +435,6 @@ class PopularProductsView(APIView):
 
 def authorize_by_oauth(request):
     return render(request, 'oauth.html')
+
+def oauth_complete_redirect(request):
+    return render(request, 'oauth-success.html')

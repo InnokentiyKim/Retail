@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 from pathlib import Path
 from datetime import timedelta
 from baton.ai import AIModels
+from django.urls.base import reverse
 
 # load_dotenv()
 
@@ -38,6 +39,7 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'cacheops',
     'baton',
     'django.contrib.admin',
     'django.contrib.auth',
@@ -51,7 +53,6 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'django_rest_passwordreset',
     'drf_spectacular',
-    'cacheops',
     'social_django',
     'easy_thumbnails',
     'baton.autodiscover',
@@ -80,6 +81,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'social_django.context_processors.backends',
+                'social_django.context_processors.login_redirect',
             ],
         },
     },
@@ -103,38 +106,38 @@ DATABASES = {
 }
 
 
-# REDIS_CACHE_HOST = os.getenv('REDIS_CACHE_HOST', 'localhost')
-# REDIS_CACHE_PORT = os.getenv('REDIS_CACHE_PORT', '6379')
-# REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
+REDIS_CACHE_HOST = os.getenv('REDIS_CACHE_HOST', 'localhost')
+REDIS_CACHE_PORT = os.getenv('REDIS_CACHE_PORT', '6379')
+REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
 
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_DB = os.getenv('REDIS_DB', '0')
 
-CACHEOPS_REDIS = {
-    'host': os.getenv('REDIS_CACHE_HOST', 'localhost'),
-    'port': os.getenv('REDIS_CACHE_PORT', '6379'),
-    'db': os.getenv('REDIS_CACHE_DB', '0'),
-}
-
-CACHEOPS = {
-    'auth.user': {'ops': 'get', 'timeout': 60*15},
-    'auth.*': {'ops': {'fetch', 'get'}, 'timeout': 60*60},
-    'auth.permission': {'ops': 'all', 'timeout': 60*60},
-    '*.*': {'ops': (), 'timeout': 60*60},
-    'cache_on_save': True,
-    'cache_on_get': True,
-}
-
-CACHEOPS_DEGRADE_ON_FAILURE = True
-
-# CACHES = {
-#     'default': {
-#         'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-#         'LOCATION': f'redis://{REDIS_CACHE_HOST}:{REDIS_CACHE_PORT}/{REDIS_CACHE_DB}',
-#         'TIMEOUT': 60 * 5,
-#     }
+# CACHEOPS_REDIS = {
+#     'host': os.getenv('REDIS_CACHE_HOST', 'localhost'),
+#     'port': os.getenv('REDIS_CACHE_PORT', '6379'),
+#     'db': os.getenv('REDIS_CACHE_DB', '0'),
 # }
+#
+# CACHEOPS = {
+#     'auth.user': {'ops': 'get', 'timeout': 60*15},
+#     'auth.*': {'ops': {'fetch', 'get'}, 'timeout': 60*60},
+#     'auth.permission': {'ops': 'all', 'timeout': 60*60},
+#     '*.*': {'ops': (), 'timeout': 60*60},
+#     'cache_on_save': True,
+#     'cache_on_get': True,
+# }
+#
+# CACHEOPS_DEGRADE_ON_FAILURE = True
+
+CACHES = {
+    'default': {
+        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
+        'LOCATION': f'redis://{REDIS_CACHE_HOST}:{REDIS_CACHE_PORT}/{REDIS_CACHE_DB}',
+        'TIMEOUT': 60 * 5,
+    }
+}
 
 
 # Password validation
@@ -252,10 +255,11 @@ SIMPLE_JWT = {
 }
 
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
-SOCIAL_AUTH_REQUIRE_POST = True
 SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_KEY', '')
 SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_SECRET', '')
-SOCIAL_AUTH_GITHUB_SCOPE = ['email']
+SOCIAL_AUTH_GITHUB_SCOPE = ['user:email']
+SOCIAL_AUTH_USER_MODEL = 'backend.User'
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'http://127.0.0.1:8000/social-auth/success/'
 
 SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_details',
@@ -264,7 +268,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.social_auth.social_user',
     'social_core.pipeline.user.get_username',
     'social_core.pipeline.social_auth.associate_by_email',
-    'social_core.pipeline.user.create_user',
+    'backend.authentication.create_user_pipeline',
     'backend.authentication.create_profile',
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
@@ -294,7 +298,6 @@ BATON = {
     'GRAVATAR_DEFAULT_IMG': 'retro',
     'GRAVATAR_ENABLED': True,
     'FORCE_THEME': None,
-    'LOGIN_SPLASH': '/static/core/img/login-splash.png',
     'SEARCH_FIELD': {
         'label': 'Search contents...',
         'url': '/search/',
