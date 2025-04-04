@@ -229,6 +229,7 @@ REST_FRAMEWORK = {
 
 AUTHENTICATION_BACKENDS = (
     'social_core.backends.github.GithubOAuth2',
+    'social_core.backends.vk.VKOAuth2',
     'django.contrib.auth.backends.ModelBackend'
 )
 
@@ -257,7 +258,10 @@ SIMPLE_JWT = {
 SOCIAL_AUTH_JSONFIELD_ENABLED = True
 SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_KEY', '')
 SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_SECRET', '')
+SOCIAL_AUTH_VK_OAUTH2_KEY = os.getenv('VK_KEY', '')
+SOCIAL_AUTH_VK_OAUTH2_SECRET = os.getenv('VK_SECRET', '')
 SOCIAL_AUTH_GITHUB_SCOPE = ['user:email']
+SOCIAL_AUTH_VK_OAUTH2_SCOPE = ['user:email']
 SOCIAL_AUTH_USER_MODEL = 'backend.User'
 SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'http://127.0.0.1:8000/social-auth/success/'
 
