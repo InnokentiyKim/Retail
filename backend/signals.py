@@ -62,10 +62,11 @@ def new_order_signal(user_id, order_id, order_state, report_file=None, **kwargs)
         else:
             send_email.delay(subject, body, FROM_EMAIL, to_email)
 
-
+@receiver(saved_file)
 def generate_thumbnails_async(sender, fieldfile, **kwargs):
-    generate_thumbnails.delay(
-        model=sender,
-        pk=fieldfile.instance.pk,
-        field=fieldfile.field.name
-    )
+    if fieldfile:
+        generate_thumbnails.delay(
+            model=sender,
+            pk=fieldfile.instance.pk,
+            field=fieldfile.field.name
+        )

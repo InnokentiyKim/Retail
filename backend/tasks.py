@@ -8,6 +8,7 @@ from django.core.mail import EmailMultiAlternatives
 from backend.models import Category, Product, ProductItem, Property, ProductProperty
 from backend.serializers import ShopGoodsImportSerializer
 from easy_thumbnails.files import generate_all_aliases
+from easy_thumbnails.exceptions import InvalidImageFormatError
 
 
 @shared_task
@@ -83,8 +84,11 @@ def import_goods(url: str, shop_id: int, user_id: int):
 
 @shared_task
 def generate_thumbnails(model, pk, field):
-    instance = model.objects.get(pk=pk)
-    fieldfile = getattr(instance, field)
-    generate_all_aliases(fieldfile, include_global=True)
-
-
+    try:
+        instance = model.objects.get(pk=pk)
+        fieldfile = getattr(instance, field)
+        generate_all_aliases(fieldfile, include_global=True)
+    except InvalidImageFormatError:
+        return f"Invalid image format for {field}"
+    except Exception as err:
+        return f"Error generating thumbnails for {field}: {err}"

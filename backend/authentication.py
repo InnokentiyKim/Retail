@@ -17,5 +17,5 @@ def create_user_pipeline(strategy, details, user=None, *args, **kwargs):
     return {'is_new': True, 'user': user}
 
 
-def create_profile(backend, user, *args, **kwargs):
+def create_profile_pipeline(backend, user, *args, **kwargs):
     Profile.objects.get_or_create(user=user)

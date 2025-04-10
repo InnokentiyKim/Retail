@@ -16,6 +16,8 @@ from pathlib import Path
 from datetime import timedelta
 from baton.ai import AIModels
 from django.urls.base import reverse
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 
 # load_dotenv()
 
@@ -273,7 +275,7 @@ SOCIAL_AUTH_PIPELINE = (
     'social_core.pipeline.user.get_username',
     'social_core.pipeline.social_auth.associate_by_email',
     'backend.authentication.create_user_pipeline',
-    'backend.authentication.create_profile',
+    'backend.authentication.create_profile_pipeline',
     'social_core.pipeline.social_auth.associate_user',
     'social_core.pipeline.social_auth.load_extra_data',
     'social_core.pipeline.user.user_details',
@@ -388,3 +390,24 @@ BATON = {
     'order': ['backend', 'auth'],
     }
 }
+
+
+sentry_sdk.init(
+   dsn="https://a0399f130c06925dd8dd4e9efabed97e@o4509124895506432.ingest.us.sentry.io/4509128739127296",
+   integrations=[DjangoIntegration()],
+
+   # Set traces_sample_rate to 1.0 to capture 100%
+   # of transactions for performance monitoring.
+   # We recommend adjusting this value in production,
+   traces_sample_rate=1.0,
+
+   # If you wish to associate users to errors (assuming you are using
+   # django.contrib.auth) you may enable sending PII data.
+   send_default_pii=True,
+
+   # By default the SDK will try to use the SENTRY_RELEASE
+   # environment variable, or infer a git commit
+   # SHA as release, however you may want to set
+   # something more human-readable.
+   # release="myapp@1.0.0",
+)
