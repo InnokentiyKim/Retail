@@ -3,6 +3,7 @@ from django.utils import timezone
 from backend.models import ProductItem, Contact, Order, OrderItem, Property, ProductProperty, OrderStateChoices
 from backend.models import User, Shop, Category, Product, Coupon
 from rest_framework import serializers
+from easy_thumbnails.files import get_thumbnailer
 
 
 
@@ -119,6 +120,20 @@ class ProductItemSerializer(serializers.ModelSerializer):
         fields = ['id', 'product', 'shop', 'quantity', 'preview', 'price', 'price_retail', 'product_properties']
         read_only_fields = ['id']
         not_required_fields = ['preview']
+
+    def get_thumbnail_small(self, obj):
+        if obj.preview:
+            thumbnailer = get_thumbnailer(obj.preview)
+            if thumbnailer.is_alias_generated('small'):
+                return thumbnailer.get_thumbnail('small').url
+        return None
+
+    def get_thumbnail_medium(self, obj):
+        if obj.preview:
+            thumbnailer = get_thumbnailer(obj.preview)
+            if thumbnailer.is_alias_generated('medium'):
+                return thumbnailer.get_thumbnail('medium').url
+        return None
 
     def validate(self, attrs):
         if attrs['quantity'] < 0:

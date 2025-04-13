@@ -1,7 +1,7 @@
 
 [<img src="./images/Market.jpg" width="240" height="240">](https://github.com/InnokentiyKim/Retail/)
-    
-[![Coverage Status](https://img.shields.io/badge/Coverage-75%25-%23green)](https://github.com/InnokentiyKim/Retail/actions)
+---
+[![Coverage Status](https://img.shields.io/badge/сoverage-80%25-%23green)](https://github.com/InnokentiyKim/Retail/actions)
 
 # Online Market – это REST API сервис для продажи и покупки разнообразных товаров.
 > #### Сервис позволяет покупателям находить нужные товары, делать заказы, управлять ими, следить за их статусом и получать уведомления об изменениях
@@ -17,13 +17,13 @@
 > - <span style="color: #FFFF00; text-shadow: 1px 1px 1px #000000">для улучшения работы сервиса применяется пагинация и механизм тротлинга, кэширование и асинхронное выполнение ресурсоемких задач</span>
 > - <span style="color: #FFFF00; text-shadow: 1px 1px 1px #000000">для тестирования и проверки работы сервиса предоставляется документация в формате swagger</span>
 ### Технологии и инструменты
-> - Django <img src="images/django-logo.svg" alt="Django" width="20" height="20">
-> - PostgreSQL <img src="images/postgresql-logo.svg" alt="Postgresql" width="20" height="20">
-> - Redis <img src="images/redis-logo.svg" alt="Redis" width="20" height="20">
-> - Celery <img src="images/celery-logo.svg" alt="Celery" width="20" height="20">
-> - RabbitMQ <img src="images/rabbitmq-logo.svg" alt="RabbitMQ" width="20" height="20">
-> - Docker <img src="images/docker-logo.svg" alt="Docker" width="20" height="20">
-> - Docker Compose <img src="images/compose-logo.svg" alt="Docker-Compose" width="20" height="20">
+[![Django](https://img.shields.io/badge/Django-4.2-green)](https://www.djangoproject.com/)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-blue)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7.0-red)](https://redis.io/)
+[![Celery](https://img.shields.io/badge/Celery-5.3.1-green)](https://docs.celeryq.dev/)
+[![RabbitMQ](https://img.shields.io/badge/RabbitMQ-3.11-orange)](https://www.rabbitmq.com/)
+[![Docker](https://img.shields.io/badge/Docker-24.0.5-blue)](https://www.docker.com/)
+[![Docker-Compose](https://img.shields.io/badge/Docker--Compose-2.20.2-blue)](https://docs.docker.com/compose/)
 ### Схема архитектуры сервиса
 <img src="images/project_schema.png" alt="schema">
 <hr>
@@ -288,7 +288,7 @@ _Список переменных окружения (по умолчанию/�
 ## 3. Документация
 
 
-Документация по проекту доступна в формате Swagger: [localhost:8000/api/schema](http://127.0.0.1:8000/api/docs/).  
+Документация по проекту доступна в формате Swagger: [localhost:8000/api/docs](http://127.0.0.1:8000/api/docs/).  
 
 **Заметка: Метод DELETE OpenAPI не поддерживает передачу тела запроса*
 

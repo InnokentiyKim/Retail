@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin
 from .order import export_to_csv
 from .models import User, Shop, Category, Product, ProductItem, Order, OrderItem, Contact, EmailTokenConfirm, Coupon, \
-    ProductProperty
+    ProductProperty, Profile
 
 
 def admin_export_to_csv(modeladmin, request, queryset):
@@ -16,6 +16,13 @@ def admin_export_to_csv(modeladmin, request, queryset):
 
 admin_export_to_csv.short_description = "Export to CSV"
 
+
+class ProfileInline(admin.TabularInline):
+    """
+    Встраиваемая форма для добавления и редактирования профиля пользователя в административном интерфейсе Django.
+    """
+    model = Profile
+    extra = 0
 
 class ContactInline(admin.TabularInline):
     """
@@ -61,7 +68,7 @@ class CustomUserAdmin(UserAdmin):
     list_filter = ('is_active', 'is_staff', 'is_superuser')
     search_fields = ('email', 'first_name', 'last_name')
     ordering = ('last_login', )
-    inlines = [ContactInline]
+    inlines = [ProfileInline, ContactInline]
 
 
 @admin.register(Shop)

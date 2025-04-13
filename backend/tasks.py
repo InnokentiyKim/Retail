@@ -78,3 +78,16 @@ def import_goods(url: str, shop_id: int, user_id: int):
         except IntegrityError as err:
             return {'success': False, 'error': str(err)}
     return {'success': True}
+
+
+# @shared_task
+# def generate_thumbnails(model_name, pk, field):
+#     try:
+#         model = apps.get_model('backend', model_name)
+#         instance = model.objects.get(pk=pk)
+#         fieldfile = getattr(instance, field)
+#         generate_all_aliases(fieldfile, include_global=True)
+#     except InvalidImageFormatError:
+#         return f"Invalid image format for {model_name}"
+#     except Exception as err:
+#         return f"Error generating thumbnails: {str(err)}"

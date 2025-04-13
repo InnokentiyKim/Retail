@@ -14,6 +14,10 @@ import os
 from dotenv import load_dotenv
 from pathlib import Path
 from datetime import timedelta
+from baton.ai import AIModels
+from django.urls.base import reverse
+import sentry_sdk
+from sentry_sdk.integrations.django import DjangoIntegration
 
 load_dotenv()
 
@@ -37,6 +41,8 @@ ALLOWED_HOSTS = ['*']
 # Application definition
 
 INSTALLED_APPS = [
+    'cacheops',
+    'baton',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -49,6 +55,9 @@ INSTALLED_APPS = [
     'rest_framework_simplejwt',
     'django_rest_passwordreset',
     'drf_spectacular',
+    'social_django',
+    'easy_thumbnails',
+    'baton.autodiscover',
 ]
 
 MIDDLEWARE = [
@@ -66,7 +75,7 @@ ROOT_URLCONF = 'retail.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': ['templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -74,6 +83,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'social_django.context_processors.backends',
+                'social_django.context_processors.login_redirect',
             ],
         },
     },
@@ -97,22 +108,28 @@ DATABASES = {
 }
 
 
-REDIS_CACHE_HOST = os.getenv('REDIS_CACHE_HOST', 'localhost')
-REDIS_CACHE_PORT = os.getenv('REDIS_CACHE_PORT', '6379')
-REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
-
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_DB = os.getenv('REDIS_DB', '0')
 
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': f'redis://{REDIS_CACHE_HOST}:{REDIS_CACHE_PORT}/{REDIS_CACHE_DB}',
-        'TIMEOUT': 60 * 5,
-    }
+CACHEOPS_REDIS = {
+    'host': os.getenv('REDIS_CACHE_HOST', 'localhost'),
+    'port': os.getenv('REDIS_CACHE_PORT', '6379'),
+    'db': os.getenv('REDIS_CACHE_DB', '0'),
+    'socket_timeout': 3,
 }
+
+CACHEOPS = {
+    'auth.user': {'ops': 'get', 'timeout': 60*15},
+    'auth.*': {'ops': {'fetch', 'get'}, 'timeout': 60*60},
+    'auth.permission': {'ops': 'all', 'timeout': 60*60},
+    'backend.category': {'ops': 'all', 'timeout': 60*60},
+    'backend.shop': {'ops': 'all', 'timeout': 60*60},
+    'backend.product_item': {'ops': 'all', 'timeout': 60*60},
+    'backend.*': {'ops': 'all', 'timeout': 60*10},
+}
+
+CACHEOPS_DEGRADE_ON_FAILURE = True
 
 
 # Password validation
@@ -202,6 +219,12 @@ REST_FRAMEWORK = {
     'TEST_REQUEST_DEFAULT_FORMAT': 'json',
 }
 
+AUTHENTICATION_BACKENDS = (
+    'social_core.backends.github.GithubOAuth2',
+    'social_core.backends.vk.VKOAuth2',
+    'django.contrib.auth.backends.ModelBackend'
+)
+
 
 SPECTACULAR_SETTINGS = {
     'TITLE': 'Online Market',
@@ -223,3 +246,148 @@ SIMPLE_JWT = {
     'SLIDING_TOKEN_LIFETIME': timedelta(minutes=15),
     'SLIDING_TOKEN_REFRESH_LIFETIME': timedelta(days=15),
 }
+
+SOCIAL_AUTH_JSONFIELD_ENABLED = True
+SOCIAL_AUTH_GITHUB_KEY = os.getenv('GITHUB_KEY', '')
+SOCIAL_AUTH_GITHUB_SECRET = os.getenv('GITHUB_SECRET', '')
+SOCIAL_AUTH_VK_OAUTH2_KEY = os.getenv('VK_KEY', '')
+SOCIAL_AUTH_VK_OAUTH2_SECRET = os.getenv('VK_SECRET', '')
+SOCIAL_AUTH_GITHUB_SCOPE = ['user:email']
+SOCIAL_AUTH_VK_OAUTH2_SCOPE = ['user:email']
+SOCIAL_AUTH_USER_MODEL = 'backend.User'
+SOCIAL_AUTH_LOGIN_REDIRECT_URL = 'http://127.0.0.1:8000/social-auth/success/'
+
+SOCIAL_AUTH_PIPELINE = (
+    'social_core.pipeline.social_auth.social_details',
+    'social_core.pipeline.social_auth.social_uid',
+    'social_core.pipeline.social_auth.auth_allowed',
+    'social_core.pipeline.social_auth.social_user',
+    'social_core.pipeline.user.get_username',
+    'social_core.pipeline.social_auth.associate_by_email',
+    'backend.authentication.create_user_pipeline',
+    'backend.authentication.create_profile_pipeline',
+    'social_core.pipeline.social_auth.associate_user',
+    'social_core.pipeline.social_auth.load_extra_data',
+    'social_core.pipeline.user.user_details',
+)
+
+
+THUMBNAIL_ALIASES = {
+    '': {
+        'small': {'size': (100, 100), 'crop': 'smart'},
+        'medium': {'size': (300, 300), 'crop': 'smart'},
+    },
+}
+
+THUMBNAIL_BASEDIR = 'thumbnails'
+
+
+BATON = {
+    'SITE_HEADER': 'Online Market',
+    'SITE_TITLE': 'Online Market',
+    'THEME': 'default',
+    'INDEX_TITLE': 'Online Market administration',
+    'SUPPORT_HREF': 'https://github.com/InnokentiyKim/Retail/issues',
+    'COPYRIGHT': 'copyright © 2025 <a href="https://github.com/InnokentiyKim">Inncent</a>', # noqa
+    'POWERED_BY': '<a href="https://github.com/InnokentiyKim">Innokentiy Kim</a>',
+    'CONFIRM_UNSAVED_CHANGES': True,
+    'SHOW_MULTIPART_UPLOADING': True,
+    'ENABLE_IMAGES_PREVIEW': True,
+    'CHANGELIST_FILTERS_IN_MODAL': True,
+    'CHANGELIST_FILTERS_ALWAYS_OPEN': False,
+    'CHANGELIST_FILTERS_FORM': True,
+    'CHANGEFORM_FIXED_SUBMIT_ROW': True,
+    'COLLAPSABLE_USER_AREA': False,
+    'MENU_ALWAYS_COLLAPSED': False,
+    'MENU_TITLE': 'MENU',
+    'MESSAGES_TOASTS': False,
+    'GRAVATAR_DEFAULT_IMG': 'retro',
+    'GRAVATAR_ENABLED': True,
+    'FORCE_THEME': None,
+    'SEARCH_FIELD': {
+        'label': 'Search contents...',
+        'url': '/search/',
+    },
+    'IMAGE_PREVIEW_WIDTH': 200,
+    'AI': {
+        'IMAGES_MODEL': AIModels.BATON_DALL_E_3,
+        'VISION_MODEL': AIModels.BATON_GPT_4O_MINI,
+        'SUMMARIZATIONS_MODEL': AIModels.BATON_GPT_4O_MINI,
+        'TRANSLATIONS_MODEL': AIModels.BATON_GPT_4O,
+        'ENABLE_TRANSLATIONS': True,
+        'ENABLE_CORRECTIONS': True,
+        'CORRECTION_SELECTORS': ["textarea", "input[type=text]:not(.vDateField):not([name=username]):not([name*=subject_location])"],
+        'CORRECTIONS_MODEL': AIModels.BATON_GPT_3_5_TURBO,
+    },
+    'USER_AVATAR': {
+        'avatar_field': '/static/img/avatar.png',
+        'avatar_size': 40,
+    },
+    'MENU': (
+        { 'type': 'title', 'label': 'Market', 'apps': ('backend', 'auth', 'Django_Rest_Passwordreset', 'Baton') },
+        {
+            'type': 'app',
+            'name': 'backend',
+            'label': 'Online Market',
+            'icon': 'fa fa-shopping-cart',
+            'default_open': True,
+            'models': [
+                {
+                    'name': 'shop',
+                    'label': 'Shops',
+                    'icon': 'fa fa-store'
+                },
+                {
+                    'name': 'category',
+                    'label': 'Categories',
+                    'icon': 'fa fa-list'
+                },
+                {
+                    'name': 'product',
+                    'label': 'Products',
+                    'icon': 'fa fa-box'
+                },
+                {
+                    'name': 'productitem',
+                    'label': 'ProductItems',
+                    'icon': 'fa fa-gift'
+                },
+                {
+                    'name': 'order',
+                    'label': 'Orders',
+                    'icon': 'fa fa-shopping-basket'
+                },
+                {
+                    'name': 'coupon',
+                    'label': 'Coupons',
+                    'icon': 'fa fa-ticket'
+                },
+            ]
+        },
+        {
+            'type': 'app',
+            'name': 'auth',
+            'label': 'Authentication and Authorization',
+            'icon': 'fa fa-lock',
+            'default_open': True,
+            'models': [
+                {
+                    'name': 'group',
+                    'label': 'Groups',
+                    'icon': 'fa fa-users'
+                },
+            ]
+        },
+    ),
+    'DASHBOARD': {
+    'order': ['backend', 'auth'],
+    }
+}
+
+
+sentry_sdk.init(
+   dsn="",
+   integrations=[DjangoIntegration()],
+   traces_sample_rate=1.0,
+   send_default_pii=True,
+)

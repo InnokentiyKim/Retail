@@ -16,11 +16,12 @@ def settings():
     settings.DEBUG = True
     settings.EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
     settings.REST_FRAMEWORK['DEFAULT_THROTTLE_CLASSES'] = []
-    settings.CASHES = {
-        'default': {
-            'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
-        }
-    }
+    settings.CACHEOPS_ENABLED = False
+    # settings.CASHES = {
+    #     'default': {
+    #         'BACKEND': 'django.core.cache.backends.dummy.DummyCache',
+    #     }
+    # }
     return settings
 
 
@@ -176,6 +177,20 @@ def test_get_shops(client):
 
 
 @pytest.mark.django_db
+def test_create_shop(client, obtain_users_credentials):
+    url = reverse('backend:seller-shop')
+    users_info = obtain_users_credentials(user_type=UserTypeChoices.SELLER)
+    token = users_info['token'].get('access')
+    user_id = users_info.get('user_id')
+    client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+    assert user_id is not None
+    payload = {'name': 'test_shop', 'url': 'https://testshop.ru', 'description': 'simple description', 'is_active': 'true'}
+    response = client.post(url, payload)
+    assert response.status_code == status.HTTP_201_CREATED
+    assert response.json().get('success') is True
+
+
+@pytest.mark.django_db
 def test_get_product_items(client):
     url = reverse('backend:products')
     response = client.get(url)
@@ -183,7 +198,7 @@ def test_get_product_items(client):
 
 
 @pytest.mark.django_db
-def test_get_create_shopping_cart(client, obtain_users_credentials, make_shops_with_products_factory):
+def test_shopping_cart(client, obtain_users_credentials, make_shops_with_products_factory):
     url = reverse('backend:shoppingcart')
     product_items = make_shops_with_products_factory()
     users_info = obtain_users_credentials()
@@ -200,6 +215,17 @@ def test_get_create_shopping_cart(client, obtain_users_credentials, make_shops_w
     response = client.get(url)
     assert response.status_code == status.HTTP_200_OK
     assert len(response.data[0]['ordered_items']) == len(product_items)
+
+    payload = [{'id': item.id, 'quantity': (added_items_quantity + 1)} for item in product_items]
+    response = client.put(url, payload)
+    assert response.status_code == status.HTTP_200_OK
+    response = client.get(url)
+    assert response.status_code == status.HTTP_200_OK
+
+    deleting_items = [item.id for item in product_items]
+    payload = {'items': deleting_items}
+    response = client.delete(url, payload)
+    assert response.status_code == status.HTTP_204_NO_CONTENT
 
 
 @override_settings(CELERY_TASK_ALWAYS_EAGER=True, EMAIL_BACKEND='django.core.mail.backends.console.EmailBackend')
