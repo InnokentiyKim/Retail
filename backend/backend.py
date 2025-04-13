@@ -1,7 +1,6 @@
 import redis
 from django.conf import settings
 from django.db import transaction
-from django.core.cache import cache
 from django.contrib.auth.password_validation import validate_password
 from django.db import IntegrityError
 from django.db.models import Q
@@ -247,18 +246,14 @@ class SellerBackend:
             Response: Объект ответа, содержащий список заказов с информацией о них:
                 id, ordered_items, created_at, state, contact, total_price
         """
-        cache_key = f'seller_orders_{request.user.id}'
-        orders = cache.get(cache_key)
-        if not orders:
-            orders = Order.objects.filter(
-                ordered_items__product_item__shop__user_id=request.user.id).exclude(
-                state=OrderStateChoices.PREPARING).prefetch_related(
-                'ordered_items__product_item__product__category',
-                'ordered_items__product_item__product_properties__property').select_related(
-                'contact').distinct()
-            if orders is None:
-                return JsonResponse({'success': False, 'error': 'No orders found'}, status=http_status.HTTP_404_NOT_FOUND)
-            cache.set(cache_key, orders, 60)
+        orders = Order.objects.filter(
+            ordered_items__product_item__shop__user_id=request.user.id).exclude(
+            state=OrderStateChoices.PREPARING).prefetch_related(
+            'ordered_items__product_item__product__category',
+            'ordered_items__product_item__product_properties__property').select_related(
+            'contact').distinct().cache(ops=['all'], timeout=60 * 15)
+        if orders is None:
+            return JsonResponse({'success': False, 'error': 'No orders found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -272,8 +267,8 @@ class SellerBackend:
         Возвращает:
             Response: Объект ответа, содержащий список товаров продавца
         """
-        products = ProductItem.objects.filter(shop__user_id=request.user.id).select_related(
-            'product').distinct()
+        products = (ProductItem.objects.filter(shop__user_id=request.user.id).select_related(
+            'product').distinct()).cache(ops=['all'], timeout=60 * 15)
         if products is None:
             return JsonResponse({'success': False, 'error': 'No products found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = ProductItemSerializer(products, many=True)
@@ -285,7 +280,6 @@ class ProductsBackend:
     def get_products(self, request):
         """
         Метод возвращает список товаров, относящихся к активным магазинам.
-        Он использует кэширование, чтобы уменьшить нагрузку на БД.
 
         Параметры:
             request (Request): Объект запроса.
@@ -293,14 +287,10 @@ class ProductsBackend:
             Response: Объект ответа, содержащий список товаров с информацией о них:
                 id, product, shop, quantity, preview, price, price_retail, product_properties
         """
-        cache_key = 'all_products'
-        products = cache.get(cache_key)
-        if not products:
-            products = ProductItem.objects.filter(shop__is_active=True, quantity__gt=0).select_related(
-                'shop', 'product').distinct()
-            if products is None:
-                return JsonResponse({'success': False, 'error': 'No products found'}, status=http_status.HTTP_404_NOT_FOUND)
-            cache.set(cache_key, products, 60 * 5)
+        products = ProductItem.objects.filter(shop__is_active=True, quantity__gt=0).select_related(
+            'shop', 'product').distinct()
+        if products is None:
+            return JsonResponse({'success': False, 'error': 'No products found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = ProductItemSerializer(products, many=True)
         return Response(serializer.data)
 
@@ -479,17 +469,13 @@ class BuyerBackend:
                 - Ответ со статусом HTTP 200 при успешном получении списка заказов.
                 - Если список заказов не найден, возвращает ошибку со статусом HTTP 404.
         """
-        cache_key = f'buyer_orders_{request.user.id}'
-        orders = cache.get(cache_key)
-        if not orders:
-            orders = (Order.objects.filter(user_id=request.user.id).exclude(
-                state=OrderStateChoices.PREPARING).prefetch_related(
-                'ordered_items__product_item__product__category',
-                'ordered_items__product_item__product_properties__property'
-            ).select_related('contact').distinct())
-            if orders is None:
-                return JsonResponse({'success': False, 'error': 'No orders found'}, status=http_status.HTTP_404_NOT_FOUND)
-            cache.set(cache_key, orders, 60 * 3)
+        orders = (Order.objects.filter(user_id=request.user.id).exclude(
+            state=OrderStateChoices.PREPARING).prefetch_related(
+            'ordered_items__product_item__product__category',
+            'ordered_items__product_item__product_properties__property'
+        ).select_related('contact').distinct()).cache(ops=['all'], timeout=60 * 10)
+        if orders is None:
+            return JsonResponse({'success': False, 'error': 'No orders found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = OrderSerializer(orders, many=True)
         return Response(serializer.data)
 
@@ -563,7 +549,7 @@ class ContactBackend:
                 - Если список контактов найден, возвращает его в ответе в формате JSON.
                 - Если список контактов не найден, возвращает ошибку со статусом HTTP 404.
         """
-        contacts = Contact.objects.filter(user_id=request.user.id)
+        contacts = Contact.objects.filter(user_id=request.user.id).cache(ops=['all'], timeout=60 * 15)
         if contacts is None:
             return JsonResponse({'success': False, 'error': 'No contacts found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = ContactSerializer(contacts, many=True)
@@ -663,7 +649,7 @@ class CouponBackend:
         Возвращает:
             Response: JSON-ответ, содержащий список купонов.
         """
-        coupons = Coupon.objects.all()
+        coupons = Coupon.objects.all().cache(ops=['all'], timeout=60 * 15)
         serializer = CouponSerializer(coupons, many=True)
         return Response(serializer.data)
 
@@ -770,7 +756,7 @@ class ManagerBackend(CouponBackend):
             state=OrderStateChoices.PREPARING).prefetch_related(
             'ordered_items__product_item__product__category',
             'ordered_items__product_item__product_properties__property'
-        ).select_related('contact').distinct())
+        ).select_related('contact').distinct()).cache(ops=['all'], timeout=60 * 15)
         if orders is None:
             return JsonResponse({'success': False, 'error': 'No orders found'}, status=http_status.HTTP_404_NOT_FOUND)
         serializer = OrderSerializer(orders, many=True)

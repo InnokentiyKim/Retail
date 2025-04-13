@@ -1,4 +1,3 @@
-from django.core.cache import cache
 from django.http.response import JsonResponse
 from django.shortcuts import render
 from drf_spectacular.utils import extend_schema
@@ -16,6 +15,7 @@ from .serializers import CategorySerializer, ShopSerializer, ProductItemSerializ
 from django_filters.rest_framework import DjangoFilterBackend
 from rest_framework.filters import SearchFilter, OrderingFilter
 from .api_config import APIConfig
+from cacheops import cached_as
 
 
 class AccountRegisterView(APIView):
@@ -124,7 +124,9 @@ class CategoriesView(ListAPIView):
 
     @extend_schema(**APIConfig.get_category_config())
     def get(self, request, *args, **kwargs):
-        return super().get(request, *args, **kwargs)
+        response = super(CategoriesView, self).get(request, *args, **kwargs)
+        categories = response.data
+        return JsonResponse(categories)
 
 
 class ShopsView(ListAPIView):
@@ -141,29 +143,14 @@ class ShopsView(ListAPIView):
     search_fields = ['name', 'description']
     ordering_fields = ['id', 'name']
 
-    @staticmethod
-    def get_cache_key(request, **kwargs):
-        """
-        Функция для получения ключа кэша
-        """
-        used_filter = request.GET.get('id', '')
-        used_search = request.GET.get('search', '')
-        used_ordering = request.GET.get('ordering', '')
-        return f'shops_{used_filter}_{used_search}_{used_ordering}'
-
     @extend_schema(**APIConfig.get_shops_config())
     def get(self, request, *args, **kwargs):
         """
         Переопределение метода получения списка магазинов
         Метод использует кэширование результатов запроса
         """
-        cache_key = self.get_cache_key(request, **kwargs)
-        response_data = cache.get(cache_key)
-        if response_data is None:
-            response_data = super().get(request, *args, **kwargs).data
-            if response_data is not None:
-                cache.set(cache_key, response_data, 60 * 10)
-        return JsonResponse(response_data)
+        shops = super().get(request, *args, **kwargs).data
+        return JsonResponse(shops)
 
 
 class SellerShopView(APIView):
@@ -191,26 +178,10 @@ class ProductItemView(ListAPIView):
     filter_backends = [DjangoFilterBackend, SearchFilter, OrderingFilter]
     filterset_class = ProductItemFilter
 
-
-    @staticmethod
-    def get_cache_key(request, **kwargs):
-        """
-        Функция для получения ключа кэша
-        """
-        used_shop_filter = request.GET.get('shop_id', '')
-        used_category_filter = request.GET.get('category_id', '')
-        used_search = request.GET.get('search', '')
-        used_ordering = request.GET.get('ordering', '')
-        return f'shops_{used_shop_filter}_{used_category_filter}_{used_search}_{used_ordering}'
-
     @extend_schema(**APIConfig.get_products_config())
     def get(self, request, *args, **kwargs):
-        cache_key = self.get_cache_key(request, **kwargs)
-        products = cache.get(cache_key)
-        if products is None:
-            products = super().get(request, *args, **kwargs).data
-            if products is not None:
-                cache.set(cache_key, products, 60 * 5)
+        response = super(ProductItemView, self).get(request, *args, **kwargs)
+        products = response.data
         return JsonResponse(products)
 
 
@@ -262,7 +233,10 @@ class SellerStatusView(APIView):
         """
         Получение статуса продавца
         """
-        return SellerBackend.get_status(request)
+        @cached_as(Shop.objects.filter(user_id=request.user.id), timeout=60*30)
+        def get_status():
+            return SellerBackend.get_status(request)
+        return get_status()
 
     @extend_schema(**APIConfig.change_seller_status_config())
     def post(self, request, *args, **kwargs):

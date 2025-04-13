@@ -7,8 +7,6 @@ from celery import shared_task
 from django.core.mail import EmailMultiAlternatives
 from backend.models import Category, Product, ProductItem, Property, ProductProperty
 from backend.serializers import ShopGoodsImportSerializer
-from easy_thumbnails.files import generate_all_aliases
-from easy_thumbnails.exceptions import InvalidImageFormatError
 
 
 @shared_task
@@ -82,13 +80,14 @@ def import_goods(url: str, shop_id: int, user_id: int):
     return {'success': True}
 
 
-@shared_task
-def generate_thumbnails(model, pk, field):
-    try:
-        instance = model.objects.get(pk=pk)
-        fieldfile = getattr(instance, field)
-        generate_all_aliases(fieldfile, include_global=True)
-    except InvalidImageFormatError:
-        return f"Invalid image format for {field}"
-    except Exception as err:
-        return f"Error generating thumbnails for {field}: {err}"
+# @shared_task
+# def generate_thumbnails(model_name, pk, field):
+#     try:
+#         model = apps.get_model('backend', model_name)
+#         instance = model.objects.get(pk=pk)
+#         fieldfile = getattr(instance, field)
+#         generate_all_aliases(fieldfile, include_global=True)
+#     except InvalidImageFormatError:
+#         return f"Invalid image format for {model_name}"
+#     except Exception as err:
+#         return f"Error generating thumbnails: {str(err)}"

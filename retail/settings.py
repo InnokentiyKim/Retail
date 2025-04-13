@@ -19,7 +19,7 @@ from django.urls.base import reverse
 import sentry_sdk
 from sentry_sdk.integrations.django import DjangoIntegration
 
-# load_dotenv()
+load_dotenv()
 
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -108,38 +108,28 @@ DATABASES = {
 }
 
 
-REDIS_CACHE_HOST = os.getenv('REDIS_CACHE_HOST', 'localhost')
-REDIS_CACHE_PORT = os.getenv('REDIS_CACHE_PORT', '6379')
-REDIS_CACHE_DB = os.getenv('REDIS_CACHE_DB', '0')
-
 REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
 REDIS_PORT = os.getenv('REDIS_PORT', '6379')
 REDIS_DB = os.getenv('REDIS_DB', '0')
 
-# CACHEOPS_REDIS = {
-#     'host': os.getenv('REDIS_CACHE_HOST', 'localhost'),
-#     'port': os.getenv('REDIS_CACHE_PORT', '6379'),
-#     'db': os.getenv('REDIS_CACHE_DB', '0'),
-# }
-#
-# CACHEOPS = {
-#     'auth.user': {'ops': 'get', 'timeout': 60*15},
-#     'auth.*': {'ops': {'fetch', 'get'}, 'timeout': 60*60},
-#     'auth.permission': {'ops': 'all', 'timeout': 60*60},
-#     '*.*': {'ops': (), 'timeout': 60*60},
-#     'cache_on_save': True,
-#     'cache_on_get': True,
-# }
-#
-# CACHEOPS_DEGRADE_ON_FAILURE = True
-
-CACHES = {
-    'default': {
-        'BACKEND': 'django.core.cache.backends.redis.RedisCache',
-        'LOCATION': f'redis://{REDIS_CACHE_HOST}:{REDIS_CACHE_PORT}/{REDIS_CACHE_DB}',
-        'TIMEOUT': 60 * 5,
-    }
+CACHEOPS_REDIS = {
+    'host': os.getenv('REDIS_CACHE_HOST', 'localhost'),
+    'port': os.getenv('REDIS_CACHE_PORT', '6379'),
+    'db': os.getenv('REDIS_CACHE_DB', '0'),
+    'socket_timeout': 3,
 }
+
+CACHEOPS = {
+    'auth.user': {'ops': 'get', 'timeout': 60*15},
+    'auth.*': {'ops': {'fetch', 'get'}, 'timeout': 60*60},
+    'auth.permission': {'ops': 'all', 'timeout': 60*60},
+    'backend.category': {'ops': 'all', 'timeout': 60*60},
+    'backend.shop': {'ops': 'all', 'timeout': 60*60},
+    'backend.product_item': {'ops': 'all', 'timeout': 60*60},
+    'backend.*': {'ops': 'all', 'timeout': 60*10},
+}
+
+CACHEOPS_DEGRADE_ON_FAILURE = True
 
 
 # Password validation
@@ -284,9 +274,12 @@ SOCIAL_AUTH_PIPELINE = (
 
 THUMBNAIL_ALIASES = {
     '': {
-        'default': {'size': (100, 100), 'crop': 'smart'},
+        'small': {'size': (100, 100), 'crop': 'smart'},
+        'medium': {'size': (300, 300), 'crop': 'smart'},
     },
 }
+
+THUMBNAIL_BASEDIR = 'thumbnails'
 
 
 BATON = {
@@ -393,21 +386,8 @@ BATON = {
 
 
 sentry_sdk.init(
-   dsn="https://a0399f130c06925dd8dd4e9efabed97e@o4509124895506432.ingest.us.sentry.io/4509128739127296",
+   dsn="",
    integrations=[DjangoIntegration()],
-
-   # Set traces_sample_rate to 1.0 to capture 100%
-   # of transactions for performance monitoring.
-   # We recommend adjusting this value in production,
    traces_sample_rate=1.0,
-
-   # If you wish to associate users to errors (assuming you are using
-   # django.contrib.auth) you may enable sending PII data.
    send_default_pii=True,
-
-   # By default the SDK will try to use the SENTRY_RELEASE
-   # environment variable, or infer a git commit
-   # SHA as release, however you may want to set
-   # something more human-readable.
-   # release="myapp@1.0.0",
 )

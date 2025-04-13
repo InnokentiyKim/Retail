@@ -177,8 +177,13 @@ def test_get_shops(client):
 
 
 @pytest.mark.django_db
-def test_create_shop(client):
+def test_create_shop(client, obtain_users_credentials):
     url = reverse('backend:seller-shop')
+    users_info = obtain_users_credentials(user_type=UserTypeChoices.SELLER)
+    token = users_info['token'].get('access')
+    user_id = users_info.get('user_id')
+    client.credentials(HTTP_AUTHORIZATION='Bearer ' + token)
+    assert user_id is not None
     payload = {'name': 'test_shop', 'url': 'https://testshop.ru', 'description': 'simple description', 'is_active': 'true'}
     response = client.post(url, payload)
     assert response.status_code == status.HTTP_201_CREATED

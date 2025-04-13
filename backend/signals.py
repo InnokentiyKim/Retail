@@ -4,8 +4,7 @@ from django.db.models.signals import post_save
 from django.dispatch import receiver, Signal
 from django_rest_passwordreset.signals import reset_password_token_created
 from backend.models import User, EmailTokenConfirm, OrderStateChoices
-from .tasks import send_email, generate_thumbnails
-from easy_thumbnails.signals import saved_file
+from .tasks import send_email
 
 FROM_EMAIL = settings.EMAIL_HOST_USER
 
@@ -62,11 +61,13 @@ def new_order_signal(user_id, order_id, order_state, report_file=None, **kwargs)
         else:
             send_email.delay(subject, body, FROM_EMAIL, to_email)
 
-@receiver(saved_file)
-def generate_thumbnails_async(sender, fieldfile, **kwargs):
-    if fieldfile:
-        generate_thumbnails.delay(
-            model=sender,
-            pk=fieldfile.instance.pk,
-            field=fieldfile.field.name
-        )
+
+# @receiver(saved_file)
+# def generate_thumbnails_async(sender, fieldfile, **kwargs):
+#     generate_thumbnails.delay(
+#         model_name=sender.__name__,
+#         pk=fieldfile.instance.pk,
+#         field=fieldfile.field.name
+#     )
+
+
